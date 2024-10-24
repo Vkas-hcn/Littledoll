@@ -4,11 +4,41 @@ import android.content.Context
 import com.dear.littledoll.BuildConfig
 import com.dear.littledoll.LDApplication
 import com.dear.littledoll.R
+import com.dear.littledoll.ad.AdDataUtils.base64Decode
 import com.dear.littledoll.bean.CountryBean
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 
 object DataManager {
 
     private val sharedPreferences by lazy { LDApplication.app.getSharedPreferences("data_ld", Context.MODE_PRIVATE) }
+    //hmd
+    var black_value:String
+        get() = sharedPreferences.getString("black_value", "").toString()
+        set(value) {
+            sharedPreferences.edit().putString("black_value", value).apply()
+        }
+    var online_ad_value:String
+        get() = sharedPreferences.getString("online_ad_value", "").toString()
+        set(value) {
+            sharedPreferences.edit().putString("online_ad_value", value).apply()
+        }
+    var online_pz_value:String
+        get() = sharedPreferences.getString("online_pz_value", "").toString()
+        set(value) {
+            sharedPreferences.edit().putString("online_pz_value", value).apply()
+        }
+
+    var online_smart_value:String
+        get() = sharedPreferences.getString("online_smart_value", "").toString()
+        set(value) {
+            sharedPreferences.edit().putString("online_smart_value", value).apply()
+        }
+    var online_list_value:String
+        get() = sharedPreferences.getString("online_list_value", "").toString()
+        set(value) {
+            sharedPreferences.edit().putString("online_list_value", value).apply()
+        }
 
     var htp_country: String
         get() = sharedPreferences.getString("htp_country", "").toString()
@@ -30,38 +60,90 @@ object DataManager {
             sharedPreferences.edit().putString("select_ip", value).apply()
         }
 
+    var ad_c_num: Int
+        get() = sharedPreferences.getInt("ad_c_num", 0)
+        set(value) {
+            sharedPreferences.edit().putInt("ad_c_num", value).apply()
+        }
+    var ad_s_num: Int
+        get() = sharedPreferences.getInt("ad_s_num", 0)
+        set(value) {
+            sharedPreferences.edit().putInt("ad_s_num", value).apply()
+        }
 
-    fun getList(): MutableList<CountryBean> {
+    var ad_load_date: String
+        get() = sharedPreferences.getString("ad_load_date", "").toString()
+        set(value) {
+            sharedPreferences.edit().putString("ad_load_date", value).apply()
+        }
+
+    var uid_value: String
+        get() = sharedPreferences.getString("uid_value", "").toString()
+        set(value) {
+            sharedPreferences.edit().putString("uid_value", value).apply()
+        }
+
+    private fun getList(): MutableList<CountryBean> {
         val list = mutableListOf<CountryBean>()
         if (BuildConfig.DEBUG) {
-//            list.add(CountryBean("195.234.82.34", 443, "O6UcTwyLMDfAJqvdC5.l2hb", "AES-256-GCM", "Japan-Tokyo", "JA"))
-//            list.add(CountryBean("155.118.15.96", 13, "1zE9koY3-ZwlBfAX", "AES-256-GCM", "Japan-Tokyo", "JA"))
-            list.add(CountryBean("155.138.175.96", 443, "1zE9koY3-ZwlBfAX", "AES-256-GCM", "Japan-Tokyo", "JA"))
+            list.add(CountryBean("96.30.196.60", 443, "O6UcTwyLMDfAJqvdC5.l2hb", "AES-256-GCM", "Tokyo", "Japan"))
+
+            list.add(CountryBean("195.234.82.34", 443, "O6UcTwyLMDfAJqvdC5.l2hb", "AES-256-GCM", "Miami", "United States"))
+
         } else {
-            list.add(CountryBean("45.76.62.223", 443, "yTXIqjEZgtM9DQx-", "AES-256-GCM", "United States-Atlanta", "US"))
-            list.add(CountryBean("149.28.177.45", 443, "yTXIqjEZgtM9DQx-", "AES-256-GCM", "Australia-Sydney", "AU"))
-            list.add(CountryBean("216.128.185.73", 443, "yTXIqjEZgtM9DQx-", "AES-256-GCM", "Canada-Toronto", "FR"))
-            list.add(CountryBean("45.32.40.143", 443, "yTXIqjEZgtM9DQx-", "AES-256-GCM", "Japan-Tokyo", "JA"))
+            list.add(CountryBean("45.76.62.223", 443, "yTXIqjEZgtM9DQx-", "AES-256-GCM", "Atlanta","United States"))
+            list.add(CountryBean("149.28.177.45", 443, "yTXIqjEZgtM9DQx-", "AES-256-GCM", "Sydney", "Australia"))
+            list.add(CountryBean("216.128.185.73", 443, "yTXIqjEZgtM9DQx-", "AES-256-GCM", "Toronto", "Canada"))
+            list.add(CountryBean("45.32.40.143", 443, "yTXIqjEZgtM9DQx-", "AES-256-GCM", "Tokyo", "Japan"))
         }
         return list
     }
+
+    private fun getSmart(): MutableList<CountryBean> {
+        val list = mutableListOf<CountryBean>()
+        if (BuildConfig.DEBUG) {
+            list.add(CountryBean("96.30.196.60", 443, "O6UcTwyLMDfAJqvdC5.l2hb", "AES-256-GCM", "Tokyo", "Japan"))
+            list.add(CountryBean("195.234.82.34", 443, "O6UcTwyLMDfAJqvdC5.l2hb", "AES-256-GCM", "Miami", "United States"))
+        } else {
+            list.add(CountryBean("45.76.62.223", 443, "yTXIqjEZgtM9DQx-", "AES-256-GCM", "Atlanta","United States"))
+            list.add(CountryBean("149.28.177.45", 443, "yTXIqjEZgtM9DQx-", "AES-256-GCM", "Sydney", "Australia"))
+            list.add(CountryBean("216.128.185.73", 443, "yTXIqjEZgtM9DQx-", "AES-256-GCM", "Toronto", "Canada"))
+            list.add(CountryBean("45.32.40.143", 443, "yTXIqjEZgtM9DQx-", "AES-256-GCM", "Tokyo", "Japan"))
+        }
+        return list
+    }
+
+    fun getOnlineVpnData(isSmart: Boolean): MutableList<CountryBean> {
+        val onlineValue = if (isSmart) online_smart_value else online_list_value
+        val localAdBean = if (isSmart) getSmart() else  getList()
+        return runCatching {
+            if (onlineValue.isNotEmpty()) {
+                val type = object : TypeToken<MutableList<CountryBean>>() {}.type
+                Gson().fromJson(base64Decode(onlineValue), type)
+            } else {
+                localAdBean
+            }
+        }.getOrDefault(localAdBean)
+    }
+
 
     fun getSelectCountry(): CountryBean {
         return getList().find { it.ldHost == ip }!!
     }
 
-    fun getGrouping(ls: MutableList<CountryBean> = getList()): MutableList<MutableList<CountryBean>> {
+    fun getGrouping(ls: MutableList<CountryBean> = getOnlineVpnData(false)): MutableList<MutableList<CountryBean>> {
         val list = mutableListOf<MutableList<CountryBean>>()
         list.add(mutableListOf())
         var count = 0
         val hasMap = hashMapOf<String, Int>()
         ArrayList(ls).forEach {
-            if (hasMap.containsKey(it.country).not()) {
+            val cc = it.nayan2.replace(" ","").lowercase()
+            if (hasMap.containsKey(cc).not()) {
                 count++
-                hasMap[it.country] = count
+                hasMap[cc] = count
                 list.add(mutableListOf())
             }
-            list[hasMap[it.country] as Int].add(it)
+            list[hasMap[cc] as Int].add(it)
         }
         return list
     }

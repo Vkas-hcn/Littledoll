@@ -30,7 +30,7 @@ class SpeedActivity : AppCompatActivity() {
         list.forEach { resultList.add(it.shuffled().random(Random(System.currentTimeMillis()))) }
         if (resultList.size != 3) {
             val hosts = resultList.map { it.ldHost }.joinToString(",")
-            resultList.addAll(DataManager.getList().filter { hosts.contains(it.ldHost).not() }.shuffled().take(3 - list.size))
+            resultList.addAll(DataManager.getOnlineVpnData(false).filter { hosts.contains(it.ldHost).not() }.shuffled().take(3 - list.size))
         }
         binding.rvLayout.adapter = ResultAdapter(resultList) {
             setResult(998, Intent().apply { putExtra("data", it) })

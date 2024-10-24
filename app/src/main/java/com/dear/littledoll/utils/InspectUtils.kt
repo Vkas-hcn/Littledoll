@@ -3,13 +3,16 @@ package com.dear.littledoll.utils
 import android.app.Activity
 import android.app.AlertDialog
 import android.content.Context
+import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
 import android.webkit.WebSettings
 import com.dear.littledoll.LDApplication
+import com.dear.littledoll.ad.AdDataUtils.log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import okhttp3.Call
@@ -21,7 +24,7 @@ import org.json.JSONObject
 import java.io.IOException
 import java.util.Locale
 import kotlin.system.exitProcess
-
+import java.net.URLEncoder
 
 object InspectUtils {
 
@@ -57,6 +60,75 @@ object InspectUtils {
     }
 
 
+    fun getMapData(
+        url: String,
+        map: Map<String, Any>,
+        onNext: (response: String) -> Unit,
+        onError: (error: String) -> Unit
+    ) {
+        val queryParameters = StringBuilder()
+        for ((key, value) in map) {
+            if (queryParameters.isNotEmpty()) {
+                queryParameters.append("&")
+            }
+            queryParameters.append(URLEncoder.encode(key, "UTF-8"))
+            queryParameters.append("=")
+            queryParameters.append(URLEncoder.encode(value.toString(), "UTF-8"))
+        }
+
+        val urlString = if (url.contains("?")) {
+            "$url&$queryParameters"
+        } else {
+            "$url?$queryParameters"
+        }
+
+        val client = OkHttpClient()
+        val request = Request.Builder()
+            .url(urlString)
+            .get()
+            .build()
+
+        client.newCall(request).enqueue(object : Callback {
+            override fun onResponse(call: Call, response: Response) {
+                response.use {
+                    if (it.isSuccessful) {
+                        onNext(it.body?.string() ?: "No response body")
+                    } else {
+                        onError("HTTP error: ${it.code}")
+                    }
+                }
+            }
+
+            override fun onFailure(call: Call, e: IOException) {
+                onError("Network error: ${e.message}")
+            }
+        })
+    }
+    fun obtainTheDataOfBlacklistedUsers(context: Context) {
+        if (DataManager.black_value.isNotEmpty()) {
+            return
+        }
+        getMapData(
+            "https://sling.safeproxyxxx.com/vodka/lenore",
+            mapOf(
+                "pugh" to "com.safeproxy.xxx.speedy",
+                "wayside" to "offhand",
+                "larval" to getAppVersion(context).orEmpty(),
+                "boyar" to DataManager.uid_value,
+            ),
+            onNext = {
+                log( "The blacklist request is successful：$it")
+                DataManager.black_value = it
+            },
+            onError = {
+                GlobalScope.launch(Dispatchers.IO) {
+                    delay(10000)
+                    log( "The blacklist request failed：$it")
+                    obtainTheDataOfBlacklistedUsers(context)
+                }
+            })
+    }
+
     private fun getUrl(): Pair<String, String> {
         if (getUrlCount <= 3) {
             return Pair("https://api.infoip.io/", "country_short")
@@ -80,20 +152,20 @@ object InspectUtils {
             return true
         }
         val country = DataManager.htp_country.ifEmpty { Locale.getDefault().country }
-        if (arrayOf("CN", "HK", "MO", "IR").any { country.contains(it, true) }) {
-            AlertDialog.Builder(activity).create().apply {
-                setCancelable(false)
-                setOnKeyListener { dialog, keyCode, event -> true }
-                setMessage("This service is restricted in your region")
-                setButton(AlertDialog.BUTTON_NEGATIVE, "Confirm") { d, _ -> dismiss() }
-                setOnDismissListener {
-                    activity.finish()
-                    exitProcess(0)
-                }
-                show()
-            }
-            return true
-        }
+//        if (arrayOf("CN", "HK", "MO", "IR").any { country.contains(it, true) }) {
+//            AlertDialog.Builder(activity).create().apply {
+//                setCancelable(false)
+//                setOnKeyListener { dialog, keyCode, event -> true }
+//                setMessage("This service is restricted in your region")
+//                setButton(AlertDialog.BUTTON_NEGATIVE, "Confirm") { d, _ -> dismiss() }
+//                setOnDismissListener {
+//                    activity.finish()
+//                    exitProcess(0)
+//                }
+//                show()
+//            }
+//            return true
+//        }
         return false
     }
 
@@ -108,5 +180,13 @@ object InspectUtils {
         return false
     }
 
-
+    private fun getAppVersion(context: Context): String? {
+        return try {
+            val packageInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+            packageInfo.versionName
+        } catch (e: PackageManager.NameNotFoundException) {
+            e.printStackTrace()
+            null
+        }
+    }
 }

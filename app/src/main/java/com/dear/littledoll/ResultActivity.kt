@@ -7,9 +7,13 @@ import android.provider.ContactsContract.Data
 import android.util.Log
 import android.view.View
 import android.widget.Toast
+import androidx.activity.addCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import com.dear.littledoll.ad.AdDataUtils
 import com.dear.littledoll.adapter.ResultAdapter
 import com.dear.littledoll.bean.CountryBean
 import com.dear.littledoll.databinding.ActivityResultBinding
@@ -19,6 +23,7 @@ import com.dear.littledoll.utils.SpeedUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -33,7 +38,10 @@ class ResultActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
-        binding.back.setOnClickListener { finish() }
+        binding.back.setOnClickListener { returnToHomePage() }
+        onBackPressedDispatcher.addCallback(this) {
+            returnToHomePage()
+        }
         val data: CountryBean
         if (ConnectUtils.isVpnConnect()) {
             binding.btn.setBackgroundResource(R.drawable.test_btn_drawable)
@@ -44,17 +52,19 @@ class ResultActivity : AppCompatActivity() {
             binding.content.text = "Connection Successful"
             binding.resultContent.text = "You’re Quickly Connected and Protected"
             binding.btn.setOnClickListener {
-                SpeedUtils().loading(this, { a, b ->
-                    CoroutineScope(Dispatchers.Main).launch {
-                        withTimeoutOrNull(500){
-                            while (lifecycle.currentState != Lifecycle.State.RESUMED) delay(50)
+                testVpnSpAd{
+                    SpeedUtils().loading(this, { a, b ->
+                        CoroutineScope(Dispatchers.Main).launch {
+                            withTimeoutOrNull(500){
+                                while (lifecycle.currentState != Lifecycle.State.RESUMED) delay(50)
+                            }
+                            if (lifecycle.currentState == Lifecycle.State.RESUMED){
+                                serviceResult.launch(Intent(this@ResultActivity, SpeedActivity::class.java).putExtra("download", a).putExtra("upload", b))
+                            }
                         }
-                        if (lifecycle.currentState == Lifecycle.State.RESUMED){
-                            serviceResult.launch(Intent(this@ResultActivity, SpeedActivity::class.java).putExtra("download", a).putExtra("upload", b))
-                        }
+                    }) {
+                        Toast.makeText(this, "Speed measurement timeout", Toast.LENGTH_SHORT).show()
                     }
-                }) {
-                    Toast.makeText(this, "Speed measurement timeout", Toast.LENGTH_SHORT).show()
                 }
             }
         } else {
@@ -70,7 +80,7 @@ class ResultActivity : AppCompatActivity() {
             list.forEach { resultList.add(it.shuffled().random(Random(System.currentTimeMillis()))) }
             if (resultList.size != 4) {
                 val hosts = resultList.map { it.ldHost }.joinToString(",")
-                resultList.addAll(DataManager.getList().filter { hosts.contains(it.ldHost).not() }.shuffled().take(4 - list.size))
+                resultList.addAll(DataManager.getOnlineVpnData(false).filter { hosts.contains(it.ldHost).not() }.shuffled().take(4 - list.size))
             }
             binding.rvLayout.adapter = ResultAdapter(resultList) {
                 setResult(999, Intent().apply { putExtra("data", it) })
@@ -131,5 +141,75 @@ class ResultActivity : AppCompatActivity() {
         }
     }
 
+    private fun returnToHomePage() {
+        if (AdDataUtils.getEndIntAdData().canShowAd(AdDataUtils.end_type) == AdDataUtils.ad_jump_over) {
+            finish()
+            return
+        }
+        binding.conLoadAd.isVisible = true
+        AdDataUtils.getEndIntAdData().loadAd(AdDataUtils.end_type)
+        lifecycleScope.launch {
+            val startTime = System.currentTimeMillis()
+            var elapsedTime: Long
+            try {
+                while (isActive) {
+                    elapsedTime = System.currentTimeMillis() - startTime
+                    if (elapsedTime >= 5000L) {
+                        Log.e("TAG", "连接超时")
+                        finish()
+                        binding.conLoadAd.isVisible = false
+                        break
+                    }
+
+                    if (AdDataUtils.getEndIntAdData().canShowAd(AdDataUtils.end_type) == AdDataUtils.ad_show) {
+                        AdDataUtils.getEndIntAdData().showAd(AdDataUtils.end_type, this@ResultActivity) {
+                            finish()
+                            binding.conLoadAd.isVisible = false
+                        }
+                        break
+                    }
+                    delay(500L)
+                }
+            } catch (e: Exception) {
+                finish()
+                binding.conLoadAd.isVisible = false
+            }
+        }
+    }
+
+    private fun testVpnSpAd(nextFun: () -> Unit) {
+        if (AdDataUtils.getInterListAdData().canShowAd(AdDataUtils.list_type) == AdDataUtils.ad_jump_over) {
+            nextFun()
+            return
+        }
+        binding.conLoadAd.isVisible = true
+        AdDataUtils.getInterListAdData().loadAd(AdDataUtils.list_type)
+        lifecycleScope.launch {
+            val startTime = System.currentTimeMillis()
+            var elapsedTime: Long
+            try {
+                while (isActive) {
+                    elapsedTime = System.currentTimeMillis() - startTime
+                    if (elapsedTime >= 5000L) {
+                        binding.conLoadAd.isVisible = false
+                        nextFun()
+                        break
+                    }
+
+                    if (elapsedTime >= 1000L&&AdDataUtils.getInterListAdData().canShowAd(AdDataUtils.list_type) == AdDataUtils.ad_show) {
+                        AdDataUtils.getInterListAdData().showAd(AdDataUtils.list_type, this@ResultActivity) {
+                            binding.conLoadAd.isVisible = false
+                            nextFun()
+                        }
+                        break
+                    }
+                    delay(500L)
+                }
+            } catch (e: Exception) {
+                binding.conLoadAd.isVisible = false
+                nextFun()
+            }
+        }
+    }
 
 }

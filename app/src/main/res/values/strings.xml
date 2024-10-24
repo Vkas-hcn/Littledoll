@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">NexusVPN</string>
+    <string name="i_a_g" translatable="false">ca-app-pub-3940256099942544~3347511713</string>
+
 </resources>

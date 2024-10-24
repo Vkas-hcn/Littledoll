@@ -8,7 +8,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.ServiceConnection
-import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.VpnService
 import android.os.Build
@@ -22,7 +21,10 @@ import androidx.activity.OnBackPressedCallback
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import com.dear.littledoll.ad.AdDataUtils
 import com.dear.littledoll.bean.CountryBean
 import com.dear.littledoll.databinding.ActivityMainBinding
 import com.dear.littledoll.imp.SpeedImp
@@ -38,6 +40,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import java.text.SimpleDateFormat
@@ -46,15 +49,14 @@ import java.util.TimeZone
 
 class MainActivity : AppCompatActivity() {
     private val binding by lazy { ActivityMainBinding.inflate(layoutInflater) }
-    private var iOpenVPNAPIService: IOpenVPNAPIService? = null
-
     private var oldSelect = CountryBean()
     private var isLoading = false
     private var isOptimize = false
     private var isData = false
-
+    var nowClickState: String = "1"
     private var isClick = true
-
+    private var jobConnect: Job? = null
+    var iOpenVPNAPIService: IOpenVPNAPIService? = null
     private val imp by lazy {
         object : SpeedImp {
             override fun speedLong(download: Long, upload: Long) {
@@ -77,16 +79,18 @@ class MainActivity : AppCompatActivity() {
         binding.timeTitle.text = "Blazing Speed, Worry-Free Privacy"
         setInfoData()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            registerReceiver(receiver, IntentFilter().apply { addAction("com.speed.b") }, Context.RECEIVER_EXPORTED)
+            registerReceiver(
+                receiver,
+                IntentFilter().apply { addAction("com.speed.b") },
+                Context.RECEIVER_EXPORTED
+            )
         } else {
             registerReceiver(receiver, IntentFilter().apply { addAction("com.speed.b") })
         }
         bindService(Intent(this, ExternalOpenVPNService::class.java), mConnection, BIND_AUTO_CREATE)
         onBackPressedDispatcher.addCallback(object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (binding.btn1.visibility == View.VISIBLE) {
-                    tipsView(false)
-                } else {
+                clickBlock {
                     val intent = Intent(Intent.ACTION_MAIN)
                     intent.addCategory(Intent.CATEGORY_HOME)
                     startActivity(intent)
@@ -110,34 +114,37 @@ class MainActivity : AppCompatActivity() {
         binding.set.setOnClickListener {
             clickBlock { startActivity(Intent(this, SettingActivity::class.java)) }
         }
-        binding.btn1.setOnClickListener {
-            tipsView(false)
-            sendPostResult()
-        }
-        binding.close.setOnClickListener {
-            tipsView(false)
-        }
+
         binding.disConnect.setOnClickListener {
             oldSelect = DataManager.selectItem
-            disconnect()
+            startUp()
         }
         binding.optimize.setOnClickListener {
             isOptimize = true
             iOpenVPNAPIService?.disconnect()
+            Log.e("TAG", ": disconnect()-3")
+
         }
         binding.test.setOnClickListener {
             clickBlock {
-                SpeedUtils().loading(this, { a, b ->
-                    CoroutineScope(Dispatchers.IO).launch {
-                        withTimeoutOrNull(500) {
-                            while (lifecycle.currentState != Lifecycle.State.RESUMED) delay(50)
+                testVpnSpAd {
+                    SpeedUtils().loading(this, { a, b ->
+                        CoroutineScope(Dispatchers.IO).launch {
+                            withTimeoutOrNull(500) {
+                                while (lifecycle.currentState != Lifecycle.State.RESUMED) delay(50)
+                            }
+                            if (lifecycle.currentState == Lifecycle.State.RESUMED) {
+                                serviceResult.launch(
+                                    Intent(
+                                        this@MainActivity,
+                                        SpeedActivity::class.java
+                                    ).putExtra("download", a).putExtra("upload", b)
+                                )
+                            }
                         }
-                        if (lifecycle.currentState == Lifecycle.State.RESUMED) {
-                            serviceResult.launch(Intent(this@MainActivity, SpeedActivity::class.java).putExtra("download", a).putExtra("upload", b))
-                        }
+                    }) {
+                        Toast.makeText(this, "Speed measurement timeout", Toast.LENGTH_SHORT).show()
                     }
-                }) {
-                    Toast.makeText(this, "Speed measurement timeout", Toast.LENGTH_SHORT).show()
                 }
             }
         }
@@ -145,9 +152,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun tipsView(b: Boolean = false) {
         binding.btn.visibility = if (b.not()) View.VISIBLE else View.GONE
-        binding.btn1.visibility = if (b.not()) View.GONE else View.VISIBLE
-        binding.viewTipsBg.visibility = if (b.not()) View.GONE else View.VISIBLE
-        binding.close.visibility = if (b.not()) View.GONE else View.VISIBLE
     }
 
 
@@ -160,7 +164,11 @@ class MainActivity : AppCompatActivity() {
         if (isClick) {
             block()
         } else {
-            Toast.makeText(this, if (ConnectUtils.isVpnConnect()) "Disconnecting... Please wait" else "Connecting... Please wait", Toast.LENGTH_SHORT)
+            Toast.makeText(
+                this,
+                if (ConnectUtils.isVpnConnect()) "Disconnecting... Please wait" else "Connecting... Please wait",
+                Toast.LENGTH_SHORT
+            )
                 .show()
         }
     }
@@ -188,6 +196,7 @@ class MainActivity : AppCompatActivity() {
         override fun newStatus(uuid: String?, state: String?, message: String?, level: String?) {
             // NOPROCESS 未连接  CONNECTED 已连接  RECONNECTING 尝试重新链接  EXITING 连接中主动掉用断开
             ConnectUtils.oState = state ?: ""
+            AdDataUtils.log("newStatus-=${ConnectUtils.oState}")
             CoroutineScope(Dispatchers.Main).launch {
                 when (ConnectUtils.oState) {
                     "NOPROCESS" -> {
@@ -195,6 +204,7 @@ class MainActivity : AppCompatActivity() {
                         binding.viewBackgroundView.setBackgroundColor(Color.WHITE)
                         if (isLoading) {
                             isLoading = false
+                            AdDataUtils.getEndIntAdData().loadAd(AdDataUtils.end_type)
                             stopTime()
                         }
                         if (isOptimize) {
@@ -203,33 +213,37 @@ class MainActivity : AppCompatActivity() {
                             binding.connectBtn.visibility = View.GONE
                             stopTime(false)
                         }
+
                     }
 
                     "..." -> {
                         ConnectUtils.oState = "CONNECTED"
                         tipsView(false)
                         defaultStatus()
-                        val t= if (DataManager.selectTime >0L) DataManager.selectTime else System.currentTimeMillis()
+                        val t =
+                            if (DataManager.selectTime > 0L) DataManager.selectTime else System.currentTimeMillis()
                         startTime(t)
                         binding.viewBackgroundView.setBackgroundColor(Color.parseColor("#EDFFA1"))
                     }
 
                     "CONNECTED" -> {
-                        defaultStatus()
-                        startTime()
-                        binding.viewBackgroundView.setBackgroundColor(Color.parseColor("#EDFFA1"))
-                        CoroutineScope(Dispatchers.Main).launch {
-                            withTimeoutOrNull(500) {
-                                while (lifecycle.currentState != Lifecycle.State.RESUMED) delay(100)
-                            }
-                            if (lifecycle.currentState == Lifecycle.State.RESUMED) {
-                                serviceResult.launch(Intent(this@MainActivity, ResultActivity::class.java).putExtra("data", oldSelect))
-                            }
-
-                        }
+                        showConnectAd()
+                        AdDataUtils.getEndIntAdData().loadAd(AdDataUtils.end_type)
                     }
 
-                    "RECONNECTING" -> iOpenVPNAPIService?.disconnect()
+                    "RECONNECTING" -> {
+                        Log.e("TAG", ": disconnect()-2")
+                        iOpenVPNAPIService?.disconnect()
+                        timeJob?.cancel()
+                        defaultStatus()
+                        setInfoData()
+                        prohibit(true)
+                        binding.time.text = "00:00:00"
+                        binding.time.visibility = View.GONE
+                        binding.timeTitle.text = "Blazing Speed, Worry-Free Privacy"
+                        binding.qd.visibility = View.VISIBLE
+                        binding.layoutConnectInfo.visibility = View.GONE
+                    }
                 }
             }
 
@@ -237,29 +251,32 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    private val serviceResult = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        if (it.resultCode == 999) {
-            val data = it.data!!.getSerializableExtra("data") as CountryBean
-            oldSelect = DataManager.selectItem
-            DataManager.selectItem = data
-            if (ConnectUtils.isVpnConnect().not()) {
+    private val serviceResult =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            if (it.resultCode == 999) {
+                val data = it.data!!.getSerializableExtra("data") as CountryBean
+                oldSelect = DataManager.selectItem
+                DataManager.selectItem = data
+                if (ConnectUtils.isVpnConnect().not()) {
+                    setInfoData()
+                }
+                sendPostResult()
+            } else if (it.resultCode == 998) {
+                val data = it.data!!.getSerializableExtra("data") as CountryBean
+                oldSelect = DataManager.selectItem
+                DataManager.selectItem = data
                 setInfoData()
+                isOptimize = true
+                isData = true
+                Log.e("TAG", ": disconnect()-1", )
+                iOpenVPNAPIService?.disconnect()
             }
-            sendPostResult()
-        } else if (it.resultCode == 998) {
-            val data = it.data!!.getSerializableExtra("data") as CountryBean
-            oldSelect = DataManager.selectItem
-            DataManager.selectItem = data
-            setInfoData()
-            isOptimize = true
-            isData = true
-            iOpenVPNAPIService?.disconnect()
         }
-    }
 
-    private val vpnResult = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        if (it.resultCode == Activity.RESULT_OK) startUp()
-    }
+    private val vpnResult =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            if (it.resultCode == Activity.RESULT_OK) startUp()
+        }
 
 
     private fun setInfoData(data: CountryBean = DataManager.selectItem) {
@@ -292,10 +309,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startUp() {
+        nowClickState = if (ConnectUtils.isVpnConnect()) {
+            "2"
+        } else {
+            "0"
+        }
         if (ConnectUtils.isVpnConnect().not()) {
             loadingIng.start()
             prohibit(false)
-            ConnectUtils.open(iOpenVPNAPIService!!)
+            iOpenVPNAPIService?.let { ConnectUtils.open(it) }
         } else {
             disconnect()
         }
@@ -310,7 +332,7 @@ class MainActivity : AppCompatActivity() {
 
     private var timeJob: Job? = null
 
-    private fun startTime(t:Long=System.currentTimeMillis()) {
+    private fun startTime(t: Long = System.currentTimeMillis()) {
         timeJob = CoroutineScope(Dispatchers.Main).launch {
             DataManager.selectTime = t
             binding.time.visibility = View.VISIBLE
@@ -344,7 +366,12 @@ class MainActivity : AppCompatActivity() {
                 while (lifecycle.currentState != Lifecycle.State.RESUMED) delay(50)
             }
             if (lifecycle.currentState == Lifecycle.State.RESUMED) {
-                serviceResult.launch(Intent(this@MainActivity, ResultActivity::class.java).putExtra("data", oldSelect))
+                serviceResult.launch(
+                    Intent(this@MainActivity, ResultActivity::class.java).putExtra(
+                        "data",
+                        oldSelect
+                    )
+                )
             }
         } else {
             if (isData) {
@@ -358,15 +385,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun disconnect() {
-        isLoading = true
-        binding.btn.visibility = View.VISIBLE
-        binding.connectBtn.visibility = View.GONE
-        loadingIng.start()
-        prohibit()
-        CoroutineScope(Dispatchers.Main).launch {
-            delay(2000)
-            iOpenVPNAPIService?.disconnect()
+        lifecycleScope.launch {
+            isLoading = true
+            binding.btn.visibility = View.VISIBLE
+            binding.connectBtn.visibility = View.GONE
+            loadingIng.start()
+            prohibit()
+            delay(1000)
+            showConnectAd()
         }
+
     }
 
 
@@ -375,7 +403,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startVpn() {
-//        if (InspectUtils.inspectConnect(this)) return
+        //TODO
+        if (InspectUtils.inspectConnect(this)) return
         if (ConnectUtils.isVpnPermission()) {
             startUp()
         } else {
@@ -383,15 +412,136 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private val singlePermissionRequestLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted.not()) {
-            if (!ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.POST_NOTIFICATIONS)) {
-                Toast.makeText(this, "Please go to the application settings page to enable notification permissions", Toast.LENGTH_SHORT).show()
+    private val singlePermissionRequestLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            if (granted.not()) {
+                if (!ActivityCompat.shouldShowRequestPermissionRationale(
+                        this,
+                        Manifest.permission.POST_NOTIFICATIONS
+                    )
+                ) {
+                    Toast.makeText(
+                        this,
+                        "Please go to the application settings page to enable notification permissions",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            } else {
+                startVpn()
             }
-        } else {
-            startVpn()
+        }
+
+    fun showConnectAd() {
+        jobConnect?.cancel()
+        jobConnect = null
+        jobConnect = lifecycleScope.launch {
+            if (AdDataUtils.adManagerConnect.canShowAd(AdDataUtils.cont_type) == AdDataUtils.ad_jump_over) {
+                showFinishAd()
+                return@launch
+            }
+            AdDataUtils.adManagerConnect.loadAd(AdDataUtils.cont_type)
+            val startTime = System.currentTimeMillis()
+            var elapsedTime: Long
+            try {
+                while (isActive) {
+                    elapsedTime = System.currentTimeMillis() - startTime
+                    if (elapsedTime >= (10 * 1000)) {
+                        Log.e("TAG", "连接超时")
+                        showFinishAd()
+                        break
+                    }
+                    if (AdDataUtils.adManagerConnect.canShowAd(AdDataUtils.cont_type) == AdDataUtils.ad_show) {
+                        AdDataUtils.adManagerConnect.showAd(
+                            AdDataUtils.cont_type,
+                            this@MainActivity
+                        ) {
+                            showFinishAd()
+                        }
+                        break
+                    }
+                    delay(500L)
+                }
+            } catch (e: Exception) {
+                showFinishAd()
+            }
         }
     }
 
+    private fun showFinishAd() {
+        lifecycleScope.launch {
+            AdDataUtils.log("showFinishAd-nowClickState=${nowClickState}")
+            if (nowClickState == "0") {
+                connectFinish()
+                AdDataUtils.adManagerConnect.loadAd(AdDataUtils.cont_type)
+            }
+            if (nowClickState == "2") {
+                disConnectFinish()
+            }
+        }
+
+    }
+
+    private suspend fun connectFinish() {
+        defaultStatus()
+        startTime()
+        binding.viewBackgroundView.setBackgroundColor(Color.parseColor("#EDFFA1"))
+        withTimeoutOrNull(500) {
+            while (lifecycle.currentState != Lifecycle.State.RESUMED) delay(100)
+        }
+        if (lifecycle.currentState == Lifecycle.State.RESUMED) {
+            serviceResult.launch(
+                Intent(
+                    this@MainActivity,
+                    ResultActivity::class.java
+                ).putExtra("data", oldSelect)
+            )
+        }
+    }
+
+    private fun disConnectFinish() {
+        iOpenVPNAPIService?.disconnect()
+        Log.e("TAG", ": disconnect()-4")
+
+    }
+
+    private fun testVpnSpAd(nextFun: () -> Unit) {
+        if (AdDataUtils.getInterListAdData()
+                .canShowAd(AdDataUtils.list_type) == AdDataUtils.ad_jump_over
+        ) {
+            nextFun()
+            return
+        }
+        binding.conLoadAd.isVisible = true
+        AdDataUtils.getInterListAdData().loadAd(AdDataUtils.list_type)
+        lifecycleScope.launch {
+            val startTime = System.currentTimeMillis()
+            var elapsedTime: Long
+            try {
+                while (isActive) {
+                    elapsedTime = System.currentTimeMillis() - startTime
+                    if (elapsedTime >= 5000L) {
+                        nextFun()
+                        binding.conLoadAd.isVisible = false
+                        break
+                    }
+
+                    if (elapsedTime >= 1000L && AdDataUtils.getInterListAdData()
+                            .canShowAd(AdDataUtils.list_type) == AdDataUtils.ad_show
+                    ) {
+                        AdDataUtils.getInterListAdData()
+                            .showAd(AdDataUtils.list_type, this@MainActivity) {
+                                nextFun()
+                                binding.conLoadAd.isVisible = false
+                            }
+                        break
+                    }
+                    delay(500L)
+                }
+            } catch (e: Exception) {
+                nextFun()
+                binding.conLoadAd.isVisible = false
+            }
+        }
+    }
 
 }
