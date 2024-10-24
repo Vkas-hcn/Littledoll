@@ -13,6 +13,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Little doll"
+rootProject.name = "NexusVPN"
 include ':app'
 include ':Fobl'
