@@ -34,7 +34,6 @@ data class AdEasy(
     var showIp: String? = null
 )
 
-
 @Keep
 data class AdLjBean(
     val nayan1: String,

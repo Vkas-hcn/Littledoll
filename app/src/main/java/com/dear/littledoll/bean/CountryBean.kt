@@ -1,9 +1,11 @@
 package com.dear.littledoll.bean
 
+import androidx.annotation.Keep
 import com.dear.littledoll.utils.DataManager
 import com.google.gson.annotations.SerializedName
 import java.io.Serializable
 
+@Keep
 data class CountryBean(
     @SerializedName("nayan1")
     var ldHost: String = "",

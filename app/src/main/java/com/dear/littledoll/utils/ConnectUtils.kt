@@ -25,8 +25,6 @@ object ConnectUtils {
         AdDataUtils.nowVpnBean = data
         DataManager.ip = data.ldHost
         runCatching {
-            //这个是春哥给你的配置文件，然后你放到项目的assets目录下即可，填上对应的名字
-//            val conf = LDApplication.app.assets.open(if (BuildConfig.DEBUG) "test2.ovpn" else "lain.ovpn")
             val conf = LDApplication.app.assets.open("test.ovpn")
             val bufferedReader = BufferedReader(InputStreamReader(conf))
             val config = StringBuilder()

@@ -30,17 +30,11 @@ class SpeedUtils {
         rotationAnimator.duration = 2000
         rotationAnimator.repeatCount = ObjectAnimator.INFINITE
         rotationAnimator.start()
-        AlertDialog.Builder(activity).setView(binding.root).create().apply {
+
+        val dialog = AlertDialog.Builder(activity).setView(binding.root).create().apply {
             setCancelable(false)
             window?.setBackgroundDrawableResource(R.drawable.laoding_drawable)
             setOnKeyListener { _, _, _ -> true }
-            speed({ a, b ->
-                block(a, b)
-                dismiss()
-            }, {
-                dismiss()
-                error()
-            })
             show()
             window?.apply {
                 attributes = attributes.apply {
@@ -49,7 +43,23 @@ class SpeedUtils {
                 }
             }
         }
+
+        fun safeDismiss() {
+            if (activity.isFinishing || activity.isDestroyed) {
+                return
+            }
+            dialog.dismiss()
+        }
+
+        speed({ a, b ->
+            block(a, b)
+            safeDismiss()
+        }, {
+            safeDismiss()
+            error()
+        })
     }
+
 
 
     private fun speed(block: (String, String) -> Unit, error: () -> Unit) {

@@ -13,10 +13,13 @@ import com.dear.littledoll.ad.AdDataUtils.onlien_ad_key
 import com.dear.littledoll.ad.AdDataUtils.onlien_list_key
 import com.dear.littledoll.ad.AdDataUtils.onlien_pz_key
 import com.dear.littledoll.ad.AdDataUtils.onlien_smart_key
+import com.dear.littledoll.ad.up.UpDataMix
 import com.dear.littledoll.databinding.ActivityLiverBinding
 import com.dear.littledoll.utils.DataManager
 import com.dear.littledoll.utils.InspectUtils
 import com.facebook.FacebookSdk
+import com.facebook.appevents.AppEventsLogger
+import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.remoteconfig.ktx.remoteConfig
 import kotlinx.coroutines.CoroutineScope
@@ -36,6 +39,7 @@ class LiverActivity : AppCompatActivity() {
     private var jobOpenTdo: Job? = null
     private var jobJumpJob: Job? = null
     private var fileBaseJob: Job? = null
+    var isCa = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,15 +51,17 @@ class LiverActivity : AppCompatActivity() {
         CoroutineScope(Dispatchers.IO).launch {
             InspectUtils.obtainTheDataOfBlacklistedUsers(this@LiverActivity)
         }
+        UpDataMix.postSessionData(this)
+        clickFUn()
+    }
 
+    private fun clickFUn() {
         onBackPressedDispatcher.addCallback(object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
 
             }
         })
     }
-
-    var isCa = false
 
     private fun getFileBaseData(loadAdFun: () -> Unit) {
         fileBaseJob = lifecycleScope.launch {
@@ -65,7 +71,7 @@ class LiverActivity : AppCompatActivity() {
                 DataManager.online_pz_value = auth.getString(onlien_pz_key)
                 DataManager.online_smart_value = auth.getString(onlien_smart_key)
                 DataManager.online_list_value = auth.getString(onlien_list_key)
-                log("nayan=${auth.getString(onlien_pz_key)}")
+                log("onlien_list_key=${auth.getString(onlien_list_key)}")
                 isCa = true
                 initFaceBook()
             }
@@ -105,7 +111,7 @@ class LiverActivity : AppCompatActivity() {
         log("initFaceBook: ${bean.nayan2}")
         FacebookSdk.setApplicationId(bean.nayan2)
         FacebookSdk.sdkInitialize(LDApplication.app)
-//        AppEventsLogger.activateApp(AAApp.thisApplication)
+        AppEventsLogger.activateApp(LDApplication.app)
     }
 
     private fun showOpenAd() {

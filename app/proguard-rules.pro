@@ -19,3 +19,13 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# Keep CountryBean class and its fields from obfuscation
+-keepclassmembers class com.dear.littledoll.bean.CountryBean {
+    @com.google.gson.annotations.SerializedName <fields>;
+}
+
+# Keep the data class from obfuscation
+-keepclassmembers class com.dear.littledoll.bean.CountryBean {
+    *;
+}

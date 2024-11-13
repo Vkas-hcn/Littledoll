@@ -12,10 +12,12 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import com.dear.littledoll.LDApplication
 import com.dear.littledoll.MainActivity
 import com.dear.littledoll.R
 import com.dear.littledoll.ResultActivity
 import com.dear.littledoll.ad.AdDataUtils.log
+import com.dear.littledoll.ad.up.UpDataMix
 import com.dear.littledoll.utils.ConnectUtils
 import com.dear.littledoll.utils.DataManager
 import com.google.android.gms.ads.AdRequest
@@ -39,12 +41,14 @@ class AdManager(private val application: Application) {
     private val adTimestamps = mutableMapOf<String, Long>()
     private var adAllData: VpnAdBean = AdDataUtils.getAdListData()
 
-    //    private var adDataOpen: AdEasy? = null
-//    private var adDataHome: AdEasy? = null
-//    private var adDataResult: AdEasy? = null
-//    private var adDataCont: AdEasy? = null
-//    private var adDataList: AdEasy? = null
-//    private var adDataBa: AdEasy? = null
+    private lateinit var adDataOpen: AdEasy
+    private lateinit var adDataCont: AdEasy
+    private lateinit var adDataList: AdEasy
+    private lateinit var adDataEnd: AdEasy
+
+    private lateinit var adDataOpenDis: AdEasy
+    private lateinit var adDataListDis: AdEasy
+    private lateinit var adDataEndDis: AdEasy
     private var isFirstLoadingOpenAd = true
 
     init {
@@ -126,7 +130,15 @@ class AdManager(private val application: Application) {
     private fun loadOpenAd(adType: String, adEasy: AdEasy, adList: List<AdEasy>, index: Int) {
         if (ConnectUtils.isVpnConnect()) {
             AdDataUtils.openTypeIp = AdDataUtils.nowVpnBean.ldHost
+            adDataOpen = adEasy
+            adDataOpen = calledBeforeLoading(adEasy)
+            UpDataMix.startLoadPointData(adDataOpen,adType)
+        } else {
+            adDataOpenDis = adEasy
+            adDataOpenDis = calledBeforeLoading(adEasy)
+            UpDataMix.startLoadPointData(adDataOpenDis,adType)
         }
+
         AppOpenAd.load(application, adEasy.doll_id, AdRequest.Builder().build(),
             AppOpenAd.APP_OPEN_AD_ORIENTATION_PORTRAIT,
             object : AppOpenAd.AppOpenAdLoadCallback() {
@@ -135,12 +147,42 @@ class AdManager(private val application: Application) {
                     adCache[adType] = ad
                     adTimestamps[adType] = System.currentTimeMillis()
                     adLoadInProgress[adType] = false
+                    ad.setOnPaidEventListener { adValue ->
+                        adValue.let {
+                            val adBean = if (ConnectUtils.isVpnConnect()) {
+                                adDataOpen
+                            } else {
+                                adDataOpenDis
+                            }
+                            UpDataMix.postAdmobData(
+                                application,
+                                it,
+                                ad.responseInfo,
+                                adBean,
+                                adType
+                            )
+                        }
+                    }
+                    val adBean = if (ConnectUtils.isVpnConnect()) {
+                        adDataOpen
+                    } else {
+                        adDataOpenDis
+                    }
+                    UpDataMix.getLoadPointData(adBean,adType)
+
                 }
 
                 override fun onAdFailedToLoad(loadAdError: LoadAdError) {
                     log("${adType}广告加载失败=${loadAdError}")
                     adLoadInProgress[adType] = false
                     loadAdFromList(adType, adList, index + 1)
+                    val adBean = if (ConnectUtils.isVpnConnect()) {
+                        adDataOpen
+                    } else {
+                        adDataOpenDis
+                    }
+                    UpDataMix.getFailedPointData(adBean,adType,loadAdError.message)
+
                 }
             })
     }
@@ -194,17 +236,39 @@ class AdManager(private val application: Application) {
             when (adType) {
                 AdDataUtils.cont_type -> {
                     AdDataUtils.contTypeIp = AdDataUtils.nowVpnBean.ldHost
+                    adDataCont = adEasy
+                    adDataCont = calledBeforeLoading(adEasy)
+                    UpDataMix.startLoadPointData(adDataCont,adType)
+
                 }
 
                 AdDataUtils.list_type -> {
                     AdDataUtils.listTypeIp = AdDataUtils.nowVpnBean.ldHost
+                    adDataList = adEasy
+                    adDataList = calledBeforeLoading(adEasy)
+                    UpDataMix.startLoadPointData(adDataList,adType)
+
                 }
 
                 else -> {
                     AdDataUtils.endTypeIp = AdDataUtils.nowVpnBean.ldHost
+                    adDataEnd = adEasy
+                    adDataEnd = calledBeforeLoading(adEasy)
+                    UpDataMix.startLoadPointData(adDataEnd,adType)
                 }
             }
+        } else {
+            when (adType) {
+                AdDataUtils.end_type -> {
+                    adDataEndDis = adEasy
+                    adDataEndDis = calledBeforeLoading(adEasy)
+                }
 
+                AdDataUtils.list_type -> {
+                    adDataListDis = adEasy
+                    adDataListDis = calledBeforeLoading(adEasy)
+                }
+            }
         }
 
         InterstitialAd.load(application, adEasy.doll_id, AdRequest.Builder().build(),
@@ -215,15 +279,82 @@ class AdManager(private val application: Application) {
                     adCache[adType] = ad
                     adTimestamps[adType] = System.currentTimeMillis()
                     adLoadInProgress[adType] = false
-//                    getIntData(ad, adType)
-//                    TTTDDUtils.moo15(adType)
+                    val adBean = if (ConnectUtils.isVpnConnect()) {
+                        when (adType) {
+                            AdDataUtils.cont_type -> {
+                                adDataCont
+                            }
+
+                            AdDataUtils.list_type -> {
+                                adDataList
+                            }
+
+                            else -> {
+                                adDataEnd
+                            }
+                        }
+                    } else {
+                        when (adType) {
+                            AdDataUtils.end_type -> {
+                                adDataEndDis
+                            }
+
+                            AdDataUtils.list_type -> {
+                                adDataListDis
+                            }
+
+                            else -> {
+                                adDataEndDis
+                            }
+                        }
+                    }
+                    ad.setOnPaidEventListener { adValue ->
+                        log("插屏广告 -${adType}，开始上报: ")
+                        UpDataMix.postAdmobData(
+                            application,
+                            adValue,
+                            ad.responseInfo,
+                            adBean,
+                            adType
+                        )
+                    }
+                    UpDataMix.getLoadPointData(adBean,adType)
                 }
 
                 override fun onAdFailedToLoad(loadAdError: LoadAdError) {
                     log("${adType}广告加载失败=${loadAdError}")
                     adLoadInProgress[adType] = false
                     loadAdFromList(adType, adList, index + 1)
-//                    TTTDDUtils.moo17(adType, loadAdError.message)
+                    val adBean = if (ConnectUtils.isVpnConnect()) {
+                        when (adType) {
+                            AdDataUtils.cont_type -> {
+                                adDataCont
+                            }
+
+                            AdDataUtils.list_type -> {
+                                adDataList
+                            }
+
+                            else -> {
+                                adDataEnd
+                            }
+                        }
+                    } else {
+                        when (adType) {
+                            AdDataUtils.end_type -> {
+                                adDataEndDis
+                            }
+
+                            AdDataUtils.list_type -> {
+                                adDataListDis
+                            }
+
+                            else -> {
+                                adDataEndDis
+                            }
+                        }
+                    }
+                    UpDataMix.getFailedPointData(adBean,adType,loadAdError.message)
                 }
             })
     }
@@ -269,7 +400,14 @@ class AdManager(private val application: Application) {
                     }
                     adCache.remove(adType)
                     clearLoadIp(adType)
-//                    adDataOpen = TTTDDUtils.afterLoadLink(adDataOpen!!)
+                    if (ConnectUtils.isVpnConnect()) {
+                        adDataOpen = calledAfterPresentation(adDataOpen)
+                        UpDataMix.showAdPointData(adDataOpen, adType)
+
+                    } else {
+                        adDataOpenDis = calledAfterPresentation(adDataOpenDis)
+                        UpDataMix.showAdPointData(adDataOpenDis, adType)
+                    }
                 }
 
 //                is NativeAd -> {
@@ -314,19 +452,36 @@ class AdManager(private val application: Application) {
                     }
                     adCache.remove(adType)
                     clearLoadIp(adType)
-//                    when (adType) {
-//                        AdDataUtils.cont_type -> {
-//                            adDataCont = TTTDDUtils.afterLoadLink(adDataCont!!)
-//                        }
-//
-//                        AdDataUtils.list_type -> {
-//                            adDataList = TTTDDUtils.afterLoadLink(adDataList!!)
-//                        }
-//
-//                        else -> {
-//                            adDataBa = TTTDDUtils.afterLoadLink(adDataBa!!)
-//                        }
-//                    }
+                    if (ConnectUtils.isVpnConnect()) {
+                        when (adType) {
+                            AdDataUtils.cont_type -> {
+                                adDataCont = calledAfterPresentation(adDataCont)
+                                UpDataMix.showAdPointData(adDataCont, adType)
+                            }
+
+                            AdDataUtils.list_type -> {
+                                adDataList = calledAfterPresentation(adDataList)
+                                UpDataMix.showAdPointData(adDataList, adType)
+                            }
+
+                            else -> {
+                                adDataEnd = calledAfterPresentation(adDataEnd)
+                                UpDataMix.showAdPointData(adDataEnd, adType)
+                            }
+                        }
+                    } else {
+                        when (adType) {
+                            AdDataUtils.end_type -> {
+                                adDataEndDis = calledAfterPresentation(adDataEndDis)
+                                UpDataMix.showAdPointData(adDataEndDis, adType)
+                            }
+
+                            AdDataUtils.list_type -> {
+                                adDataListDis = calledAfterPresentation(adDataListDis)
+                                UpDataMix.showAdPointData(adDataListDis, adType)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -362,6 +517,12 @@ class AdManager(private val application: Application) {
         val adClickNum = adAllData.doll_ccc
         val currentOpenCount = DataManager.ad_s_num
         val currentClickCount = DataManager.ad_c_num
+        if (currentOpenCount >= adOpenNum) {
+            UpDataMix.adUpperLimitAdPointData("show")
+        }
+        if (currentClickCount >= adClickNum) {
+            UpDataMix.adUpperLimitAdPointData("click")
+        }
         return currentOpenCount < adOpenNum && currentClickCount < adClickNum
     }
 
@@ -441,7 +602,7 @@ class AdManager(private val application: Application) {
 //                    log("eek ip一致-显示-eek 广告-load_ip=" + getLoadIp(AdDataUtils.home_type) + "-now-ip=" + AdDataUtils.nowVpnBean.ldHost)
 //                    adCache.remove(AdDataUtils.home_type)
 //                    adLoadInProgress[AdDataUtils.home_type] = false
-//                    adDataHome = TTTDDUtils.afterLoadLink(adDataHome!!)
+//                    adDataHome = TTTDDUtils.calledAfterPresentation(adDataHome!!)
 //                }
 //            }
 //        }
@@ -470,7 +631,7 @@ class AdManager(private val application: Application) {
 //                    log("mug ip一致-显示-mug 广告-load_ip=" + getLoadIp(AdDataUtils.result_type) + "-now-ip=" + AdDataUtils.nowVpnBean.ldHost)
 //                    adCache.remove(AdDataUtils.result_type)
 //                    adLoadInProgress[AdDataUtils.result_type] = false
-//                    adDataResult = TTTDDUtils.afterLoadLink(adDataResult!!)
+//                    adDataResult = TTTDDUtils.calledAfterPresentation(adDataResult!!)
 //                }
 //            }
 //        }
@@ -631,5 +792,27 @@ class AdManager(private val application: Application) {
                 AdDataUtils.endTypeIp = ""
             }
         }
+    }
+
+    private fun calledBeforeLoading(adInformation: AdEasy): AdEasy {
+        if (ConnectUtils.isVpnConnect()) {
+            adInformation.loadIp = AdDataUtils.nowVpnBean.ldHost
+            adInformation.loadCity = AdDataUtils.nowVpnBean.nayan4
+            return adInformation
+        }
+        adInformation.loadIp = DataManager.localIp
+        adInformation.loadCity = "no connect"
+        return adInformation
+    }
+
+    private fun calledAfterPresentation(adInformation: AdEasy): AdEasy {
+        if (ConnectUtils.isVpnConnect()) {
+            adInformation.showIp = AdDataUtils.nowVpnBean.ldHost
+            adInformation.showTheCity = AdDataUtils.nowVpnBean.nayan4
+            return adInformation
+        }
+        adInformation.showIp = DataManager.localIp
+        adInformation.showTheCity = "no connect"
+        return adInformation
     }
 }

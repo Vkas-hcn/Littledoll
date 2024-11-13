@@ -224,7 +224,7 @@ object AdDataUtils {
             {
                 "doll_where": "interstitial",
                 "doll_admob": "admob",
-                "doll_id": "ca-app-pub-3940256099942544/1033173712x",
+                "doll_id": "ca-app-pub-3940256099942544/1033173712",
                 "doll_we": 1
             }
         ]

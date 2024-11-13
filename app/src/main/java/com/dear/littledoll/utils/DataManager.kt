@@ -8,6 +8,7 @@ import com.dear.littledoll.ad.AdDataUtils.base64Decode
 import com.dear.littledoll.bean.CountryBean
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import org.json.JSONArray
 
 object DataManager {
 
@@ -44,6 +45,12 @@ object DataManager {
         get() = sharedPreferences.getString("htp_country", "").toString()
         set(value) {
             sharedPreferences.edit().putString("htp_country", value).apply()
+        }
+
+    var localIp: String
+        get() = sharedPreferences.getString("localIp", "").toString()
+        set(value) {
+            sharedPreferences.edit().putString("localIp", value).apply()
         }
 
     var isSmart: Boolean
@@ -83,6 +90,22 @@ object DataManager {
             sharedPreferences.edit().putString("uid_value", value).apply()
         }
 
+    var install_value: String
+        get() = sharedPreferences.getString("install_value", "").toString()
+        set(value) {
+            sharedPreferences.edit().putString("install_value", value).apply()
+        }
+
+    var adjust_value: String
+        get() = sharedPreferences.getString("adjust_value", "").toString()
+        set(value) {
+            sharedPreferences.edit().putString("adjust_value", value).apply()
+        }
+    var gid_value: String
+        get() = sharedPreferences.getString("gid_value", "").toString()
+        set(value) {
+            sharedPreferences.edit().putString("gid_value", value).apply()
+        }
     private fun getList(): MutableList<CountryBean> {
         val list = mutableListOf<CountryBean>()
         if (BuildConfig.DEBUG) {
@@ -113,7 +136,7 @@ object DataManager {
         return list
     }
 
-    fun getOnlineVpnData(isSmart: Boolean): MutableList<CountryBean> {
+    fun getOnlineVpnData2(isSmart: Boolean): MutableList<CountryBean> {
         val onlineValue = if (isSmart) online_smart_value else online_list_value
         val localAdBean = if (isSmart) getSmart() else  getList()
         return runCatching {
@@ -126,6 +149,45 @@ object DataManager {
         }.getOrDefault(localAdBean)
     }
 
+    fun getOnlineVpnData(isSmart: Boolean): MutableList<CountryBean> {
+        val onlineValue = if (isSmart) online_smart_value else online_list_value
+        val localAdBean = if (isSmart) getSmart() else getList()
+
+        return runCatching {
+            if (onlineValue.isNotEmpty()) {
+                parseJsonToCountryList(base64Decode(onlineValue))
+            } else {
+                localAdBean
+            }
+        }.getOrDefault(localAdBean)
+    }
+
+    fun parseJsonToCountryList(jsonString: String): MutableList<CountryBean> {
+        val countryList = mutableListOf<CountryBean>()
+
+        try {
+            val jsonArray = JSONArray(jsonString)
+
+            for (i in 0 until jsonArray.length()) {
+                val jsonObject = jsonArray.getJSONObject(i)
+
+                val countryBean = CountryBean(
+                    ldHost = jsonObject.optString("nayan1", ""),  // 对应 JSON 的 nayan1
+                    nayan2 = jsonObject.optString("nayan2", "Smart Server"),  // 对应 JSON 的 nayan2
+                    ldPassword = jsonObject.optString("nayan3", ""),  // 对应 JSON 的 nayan3
+                    nayan4 = jsonObject.optString("nayan4", ""),  // 对应 JSON 的 nayan4
+                    ldMethode = jsonObject.optString("nayan5", ""),  // 对应 JSON 的 nayan5
+                    ldPort = jsonObject.optInt("nayan6", 0)  // 对应 JSON 的 nayan6
+                )
+
+                countryList.add(countryBean)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        return countryList
+    }
 
     fun getSelectCountry(): CountryBean {
         return getList().find { it.ldHost == ip }!!
