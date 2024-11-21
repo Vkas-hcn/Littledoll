@@ -170,100 +170,92 @@ object AdDataUtils {
     "cloud": {
         "open": [
             {
-                "doll_where": "open",
-                "doll_admob": "admob",
-                "doll_id": "ca-app-pub-3940256099942544/9257395921",
-                "doll_we": 2
+                "doll_w": "pp",
+                "doll_a": "admob",
+                "doll_i": "ca-app-pub-3940256099942544/9257395921",
+                "doll_e": 2
             }
         ],
         "mainad": [
             {
-                "doll_where": "native",
-                "doll_admob": "admob",
-                "doll_id": "ca-app-pub-3940256099942544/2247696110",
-                "doll_we": 2
+                "doll_w": "tt",
+                "doll_a": "admob",
+                "doll_i": "ca-app-pub-3940256099942544/2247696110",
+                "doll_e": 2
             }
         ],
         "resultnv": [
             {
-                "doll_where": "native",
-                "doll_admob": "admob",
-                "doll_id": "ca-app-pub-3940256099942544/2247696110",
-                "doll_we": 2
+                "doll_w": "tt",
+                "doll_a": "admob",
+                "doll_i": "ca-app-pub-3940256099942544/2247696110",
+                "doll_e": 2
             }
         ],
         "vncad": [
             {
-                "doll_where": "interstitial",
-                "doll_admob": "admob",
-                "doll_id": "ca-app-pub-3940256099942544/1033173712",
-                "doll_we": 2
+                "doll_w": "ss",
+                "doll_a": "admob",
+                "doll_i": "ca-app-pub-3940256099942544/1033173712",
+                "doll_e": 2
             }
         ],
         "backivsv": [
             {
-                "doll_where": "interstitial",
-                "doll_admob": "admob",
-                "doll_id": "ca-app-pub-3940256099942544/1033173712",
-                "doll_we": 2
+                "doll_w": "ss",
+                "doll_a": "admob",
+                "doll_i": "ca-app-pub-3940256099942544/1033173712",
+                "doll_e": 2
             }
         ],
         "backivconnect": [
             {
-                "doll_where": "interstitial",
-                "doll_admob": "admob",
-                "doll_id": "ca-app-pub-3940256099942544/1033173712",
-                "doll_we": 2
+                "doll_w": "ss",
+                "doll_a": "admob",
+                "doll_i": "ca-app-pub-3940256099942544/1033173712",
+                "doll_e": 2
             }
         ]
     },
     "local": {
         "open": [
             {
-                "doll_where": "open",
-                "doll_admob": "admob",
-                "doll_id": "ca-app-pub-3940256099942544/9257395921",
-                "doll_we": 1
+                "doll_w": "pp",
+                "doll_a": "admob",
+                "doll_i": "ca-app-pub-3940256099942544/9257395921",
+                "doll_e": 1
             }
         ],
         "mainad": [
             {
-                "doll_where": "native",
-                "doll_admob": "admob",
-                "doll_id": "ca-app-pub-3940256099942544/2247696110",
-                "doll_we": 1
+                "doll_w": "tt",
+                "doll_a": "admob",
+                "doll_i": "ca-app-pub-3940256099942544/2247696110",
+                "doll_e": 1
             }
         ],
         "resultnv": [
             {
-                "doll_where": "native",
-                "doll_admob": "admob",
-                "doll_id": "ca-app-pub-3940256099942544/2247696110",
-                "doll_we": 1
-            }
-        ],
-        "vncad": [
-            {
-                "doll_where": "interstitial",
-                "doll_admob": "admob",
-                "doll_id": "ca-app-pub-3940256099942544/1033173712",
-                "doll_we": 1
+                "doll_w": "tt",
+                "doll_a": "admob",
+                "doll_i": "ca-app-pub-3940256099942544/2247696110",
+                "doll_e": 1
             }
         ],
         "backivsv": [
             {
-                "doll_where": "interstitial",
-                "doll_admob": "admob",
-                "doll_id": "ca-app-pub-3940256099942544/1033173712",
-                "doll_we": 1
+                "doll_w": "ss",
+                "doll_a": "admob",
+                "doll_i": "ca-app-pub-3940256099942544/1033173712",
+                "doll_e": 1
             }
         ],
         "backivconnect": [
             {
-                "doll_where": "interstitial",
-                "doll_admob": "admob",
-                "doll_id": "ca-app-pub-3940256099942544/1033173712",
-                "doll_we": 1
+                "doll_w": "ss",
+                "doll_a": "admob",
+                "doll_i": "ca-app-pub-3940256099942544/1033173712",
+                "doll_e": 1
             }
         ]
     }

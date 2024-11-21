@@ -152,7 +152,7 @@ object InspectUtils {
 
 
     fun inspectConnect(activity: Activity): Boolean {
-//        if(BuildConfig.DEBUG){return false}
+        if(BuildConfig.DEBUG){return false}
         if (inspectNetwork().not()) {
             UpDataMix.postPointData("u_no_network")
             AlertDialog.Builder(activity).create().apply {

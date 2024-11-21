@@ -142,7 +142,7 @@ object UpDataMix {
             //ad_source
             put("pastor", "admob")
             //ad_code_id
-            put("siege", adEasy.doll_id)
+            put("siege", adEasy.doll_i)
             //ad_pos_id
             put("gases", ad_pos_id)
             //ad_rit_id
@@ -150,20 +150,20 @@ object UpDataMix {
             //ad_sense
             put("horrible", "")
             //ad_format
-            put("guru", adEasy.doll_where)
+            put("guru", adEasy.doll_w)
             //precision_type
             put("burly", getPrecisionType(adValue.precisionType))
             //ad_load_ip
-            put("sargent", adEasy.loadIp ?: "")
+            put("sargent", adEasy.llllpp ?: "")
             //ad_impression_ip
-            put("handgun", adEasy.showIp ?: "")
+            put("handgun", adEasy.sssspp ?: "")
             //ad_sdk_ver
             put("ipecac", responseInfo.responseId)
         }
         return topJsonData(context).apply {
             put("faustian", faustian)
-            put("p_theorist", adEasy.loadCity)
-            put("s_theorist", adEasy.showTheCity)
+            put("p_theorist", adEasy.llllcc)
+            put("s_theorist", adEasy.sssscc)
         }.toString()
     }
 
@@ -400,9 +400,9 @@ object UpDataMix {
             "page",
             LDApplication.nowAN,
             "ID",
-            "${adBean.doll_id}+${ConnectUtils.isVpnConnect()}",
+            "${adBean.doll_i}+${ConnectUtils.isVpnConnect()}",
             "IP",
-            adBean.loadIp
+            adBean.llllpp
         )
 
         if (ConnectUtils.isVpnConnect()) {
@@ -413,9 +413,9 @@ object UpDataMix {
                 "page",
                 LDApplication.nowAN,
                 "ID",
-                "${adBean.doll_id}+${ConnectUtils.isVpnConnect()}",
+                "${adBean.doll_i}+${ConnectUtils.isVpnConnect()}",
                 "IP",
-                adBean.loadIp
+                adBean.llllpp
             )
         }
     }
@@ -428,21 +428,21 @@ object UpDataMix {
             "page",
             LDApplication.nowAN,
             "ID",
-            "${adBean.doll_id}+${ConnectUtils.isVpnConnect()}",
+            "${adBean.doll_i}+${ConnectUtils.isVpnConnect()}",
             "IP",
-            adBean.loadIp
+            adBean.llllpp
         )
     }
 
-    fun getFailedPointData(doll_id:String,loadIp: String, adType: String, error: String) {
+    fun getFailedPointData(doll_i:String,llllpp: String, adType: String, error: String) {
         postPointData(
             "abc_askdis",
             "inform",
             adType,
             "ID",
-            "$doll_id}+${ConnectUtils.isVpnConnect()}",
+            "$doll_i}+${ConnectUtils.isVpnConnect()}",
             "IP",
-            loadIp,
+            llllpp,
             "reason",
             error
         )
@@ -456,9 +456,9 @@ object UpDataMix {
             "page",
             LDApplication.nowAN,
             "ID",
-            "${adBean.doll_id}+${ConnectUtils.isVpnConnect()}",
+            "${adBean.doll_i}+${ConnectUtils.isVpnConnect()}",
             "pp",
-            adBean.loadIp,
+            adBean.llllpp,
         )
     }
 

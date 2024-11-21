@@ -15,23 +15,23 @@ data class VpnAdBean(
 @Keep
 data class VpnAdBeanDetail(
     var open: List<AdEasy> = emptyList(),
-    var mainad: List<AdEasy> = emptyList(), // VPN首页底部原生
-    var resultnv: List<AdEasy> = emptyList(), // VPN连接/断开结果页/服务器列表页/测速结果页底部原生广告
-    var vncad: List<AdEasy> = emptyList(), // 连接/断开/切换VPN插屏广告
-    var backivsv: List<AdEasy> = emptyList(), // 服务器页面返回插屏广告
-    var backivconnect: List<AdEasy> = emptyList() // VPN连接/断开结果页返回插屏广告
+    var mainad: List<AdEasy> = emptyList(), 
+    var resultnv: List<AdEasy> = emptyList(),
+    var vncad: List<AdEasy> = emptyList(), 
+    var backivsv: List<AdEasy> = emptyList(), 
+    var backivconnect: List<AdEasy> = emptyList() 
 )
 
 @Keep
 data class AdEasy(
-    var doll_id: String = "",
-    var doll_we: Int = 0,
-    var doll_admob: String = "",
-    var doll_where: String = "",
-    var loadCity: String? = null,
-    var showTheCity: String? = null,
-    var loadIp: String? = null,
-    var showIp: String? = null
+    var doll_i: String = "",
+    var doll_e: Int = 0,
+    var doll_a: String = "",
+    var doll_w: String = "",
+    var llllcc: String? = null,
+    var sssscc: String? = null,
+    var llllpp: String? = null,
+    var sssspp: String? = null
 )
 
 @Keep
