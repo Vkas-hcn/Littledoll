@@ -37,7 +37,8 @@ data class AdEasy(
 @Keep
 data class AdLjBean(
     val nayan1: String,
-    val nayan2: String
+    val nayan2: String,
+    val nayan3: String
 )
 
 

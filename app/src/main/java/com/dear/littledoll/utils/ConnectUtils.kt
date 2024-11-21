@@ -25,7 +25,12 @@ object ConnectUtils {
         AdDataUtils.nowVpnBean = data
         DataManager.ip = data.ldHost
         runCatching {
-            val conf = LDApplication.app.assets.open("test.ovpn")
+            val ovpnName = if (BuildConfig.DEBUG) {
+                "test.ovpn"
+            } else {
+                "lain.ovpn"
+            }
+            val conf = LDApplication.app.assets.open(ovpnName)
             val bufferedReader = BufferedReader(InputStreamReader(conf))
             val config = StringBuilder()
             var line: String?

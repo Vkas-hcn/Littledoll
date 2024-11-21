@@ -10,6 +10,7 @@ import androidx.activity.addCallback
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
 import com.dear.littledoll.ad.AdDataUtils
+import com.dear.littledoll.ad.up.UpDataMix
 import com.dear.littledoll.adapter.ServiceAdapter
 import com.dear.littledoll.databinding.ActivitySelectServerBinding
 import com.dear.littledoll.utils.ConnectUtils
@@ -26,13 +27,16 @@ import java.util.TimeZone
 
 class SelectServerActivity : AppCompatActivity() {
     private var timeJob: Job? = null
-    private val binding by lazy { ActivitySelectServerBinding.inflate(layoutInflater) }
+    val binding by lazy { ActivitySelectServerBinding.inflate(layoutInflater) }
+    var jobListAd: Job? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
+        showListAd()
         binding.back.setOnClickListener { returnToHomePage() }
         onBackPressedDispatcher.addCallback(this) {
-           returnToHomePage()
+            returnToHomePage()
         }
         binding.rvLayout.adapter = ServiceAdapter {
             if (ConnectUtils.isVpnConnect()) {
@@ -46,6 +50,7 @@ class SelectServerActivity : AppCompatActivity() {
                         dismiss()
                         setResult(999, Intent().apply { putExtra("data", it) })
                         finish()
+                        UpDataMix.postPointData("p_switch_server")
                     }
                     show()
                 }
@@ -56,12 +61,19 @@ class SelectServerActivity : AppCompatActivity() {
         }
         if (DataManager.selectItem.ldHost.isNotEmpty()) {
             binding.icon.setImageResource(DataManager.selectItem.getIcon())
-            val name = DataManager.selectItem.getFistName() + "-" + DataManager.selectItem.getLastName()
+            val name =
+                DataManager.selectItem.getFistName() + "-" + DataManager.selectItem.getLastName()
             binding.name.text = name
             binding.tag.text = DataManager.selectItem.getTag()
         }
         if (ConnectUtils.isVpnConnect()) startTime()
         AdDataUtils.getInterListAdData().loadAd(AdDataUtils.list_type)
+        val state = if (ConnectUtils.isVpnConnect()) {
+            "connect"
+        } else {
+            "disconnect"
+        }
+        UpDataMix.postPointData("p_list_view", "state", state)
     }
 
     private fun startTime() {
@@ -80,9 +92,13 @@ class SelectServerActivity : AppCompatActivity() {
         super.onDestroy()
         timeJob?.cancel()
     }
+
     private fun returnToHomePage() {
-        if (AdDataUtils.getInterListAdData().canShowAd(AdDataUtils.list_type) == AdDataUtils.ad_jump_over) {
-           finish()
+        UpDataMix.postPointData("p_list_back")
+        if (AdDataUtils.getInterListAdData()
+                .canShowAd(AdDataUtils.list_type) == AdDataUtils.ad_jump_over
+        ) {
+            finish()
             return
         }
         binding.conLoadAd.isVisible = true
@@ -100,11 +116,14 @@ class SelectServerActivity : AppCompatActivity() {
                         break
                     }
 
-                    if (AdDataUtils.getInterListAdData().canShowAd(AdDataUtils.list_type) == AdDataUtils.ad_show) {
-                        AdDataUtils.getInterListAdData().showAd(AdDataUtils.list_type, this@SelectServerActivity) {
-                            finish()
-                            binding.conLoadAd.isVisible = false
-                        }
+                    if (AdDataUtils.getInterListAdData()
+                            .canShowAd(AdDataUtils.list_type) == AdDataUtils.ad_show
+                    ) {
+                        AdDataUtils.getInterListAdData()
+                            .showAd(AdDataUtils.list_type, this@SelectServerActivity) {
+                                finish()
+                                binding.conLoadAd.isVisible = false
+                            }
                         break
                     }
                     delay(500L)
@@ -115,4 +134,35 @@ class SelectServerActivity : AppCompatActivity() {
             }
         }
     }
+
+    private fun showListAd() {
+        AdDataUtils.log("showResultAd")
+        jobListAd?.cancel()
+        jobListAd = null
+        binding.adLayout.isVisible = true
+        binding.imgOcAd.isVisible = true
+        if (AdDataUtils.getEndNativeAdData()
+                .canShowAd(AdDataUtils.result_type) == AdDataUtils.ad_wait
+        ) {
+            binding.adLayoutAdmob.isVisible = false
+            AdDataUtils.getEndNativeAdData().loadAd(AdDataUtils.result_type)
+        }
+        jobListAd = lifecycleScope.launch {
+            delay(300)
+            while (isActive) {
+                if (AdDataUtils.getEndNativeAdData()
+                        .canShowAd(AdDataUtils.result_type) == AdDataUtils.ad_show
+                ) {
+                    AdDataUtils.getEndNativeAdData()
+                        .showAd(AdDataUtils.result_type, this@SelectServerActivity) {
+                        }
+                    jobListAd?.cancel()
+                    jobListAd = null
+                    break
+                }
+                delay(500L)
+            }
+        }
+    }
+
 }

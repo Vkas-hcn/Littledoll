@@ -40,7 +40,7 @@ object UpDataMix {
         "https://delia.safeproxyxxx.com/migrant/shipload"
     }
 
-    fun topJsonData(context: Context): JSONObject {
+    private fun topJsonData(context: Context): JSONObject {
         val lewd = JSONObject().apply {
             put("larval", InspectUtils.getAppVersion(context))
             put("beatnik", "")
@@ -202,26 +202,27 @@ object UpDataMix {
         }.toString()
     }
 
-    fun postSessionData(context: Context) {
-        GlobalScope.launch(Dispatchers.IO) {
-            val data = upSessionJson(context)
-            log("Session: data=${data}")
-            try {
-                val result = InspectUtils.postNetwork(data)
-                result.onSuccess { responseBody ->
-                    log("Session-请求成功: $responseBody")
-                }
-
-                result.onFailure { error ->
-                    log("Session-请求失败: ${error.message}")
-                }
-            } catch (e: Exception) {
-                log("Session-发生错误: ${e.message}")
+    suspend fun postSessionData(context: Context) {
+        val data = upSessionJson(context)
+        log("Session: data=${data}")
+        try {
+            val result = InspectUtils.postNetwork(data)
+            result.onSuccess { responseBody ->
+                log("Session-请求成功: $responseBody")
             }
+
+            result.onFailure { error ->
+                log("Session-请求失败: ${error.message}")
+            }
+        } catch (e: Exception) {
+            log("Session-发生错误: ${e.message}")
         }
     }
 
     fun postInstallData(context: Context, referrerDetails: ReferrerDetails) {
+        if (DataManager.install_value == "OK") {
+            return
+        }
         CoroutineScope(Dispatchers.IO).launch {
             val data = upInstallJson(context, referrerDetails)
             log("Install: data=${data}")
@@ -266,7 +267,7 @@ object UpDataMix {
         }
     }
 
-    private fun postPointData(
+    fun postPointData(
         name: String,
         key1: String? = null,
         keyValue1: Any? = null,
@@ -293,10 +294,9 @@ object UpDataMix {
             } else {
                 upPointJson(name)
             }
+            log("Point-${name}-开始打点--${data}")
             try {
                 val result = InspectUtils.postNetwork(data)
-                log("Point-${name}-开始打点--${data}")
-
                 result.onSuccess { responseBody ->
                     log("Point-${name}-请求成功: $responseBody")
                 }
@@ -434,15 +434,15 @@ object UpDataMix {
         )
     }
 
-    fun getFailedPointData(adBean: AdEasy, adType: String, error: String) {
+    fun getFailedPointData(doll_id:String,loadIp: String, adType: String, error: String) {
         postPointData(
             "abc_askdis",
             "inform",
             adType,
             "ID",
-            "${adBean.doll_id}+${ConnectUtils.isVpnConnect()}",
+            "$doll_id}+${ConnectUtils.isVpnConnect()}",
             "IP",
-            adBean.loadIp,
+            loadIp,
             "reason",
             error
         )
@@ -463,12 +463,8 @@ object UpDataMix {
     }
 
     fun adUpperLimitAdPointData(showType: String) {
-        postPointData(
-            "abc_limit",
-            "type",
-            showType,
-
-            )
+        DataManager.point_num_state = false
+        postPointData("abc_limit", "type", showType)
     }
 
     private fun postAdValue(context: Context, adValue: AdValue, responseInfo: ResponseInfo?) {

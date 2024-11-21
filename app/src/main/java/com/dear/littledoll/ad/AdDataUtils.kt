@@ -4,6 +4,7 @@ import android.util.Base64
 import android.util.Log
 import com.dear.littledoll.BuildConfig
 import com.dear.littledoll.LDApplication
+import com.dear.littledoll.ad.up.UpDataMix
 import com.dear.littledoll.bean.CountryBean
 import com.dear.littledoll.utils.ConnectUtils
 import com.dear.littledoll.utils.DataManager
@@ -11,11 +12,15 @@ import com.google.gson.Gson
 
 object AdDataUtils {
     var adManagerOpen: AdManager = AdManager(LDApplication.app)
+    var adManagerHomeNative: AdManager = AdManager(LDApplication.app)
+    var adManagerEndNative: AdManager = AdManager(LDApplication.app)
     var adManagerConnect: AdManager = AdManager(LDApplication.app)
-    var adManagerEndInt: AdManager  = AdManager(LDApplication.app)
+    var adManagerEndInt: AdManager = AdManager(LDApplication.app)
     var adManagerListInt: AdManager = AdManager(LDApplication.app)
 
     var adManagerOpenDis: AdManager = AdManager(LDApplication.app)
+    var adManagerHomeDisNative: AdManager = AdManager(LDApplication.app)
+    var adManagerEndDisNative: AdManager = AdManager(LDApplication.app)
     var adManagerEndIntDis: AdManager = AdManager(LDApplication.app)
     var adManagerListIntDis: AdManager = AdManager(LDApplication.app)
 
@@ -48,11 +53,28 @@ object AdDataUtils {
             Log.e("TAG", msg)
         }
     }
+
     fun getStartOpenAdData(): AdManager {
         return if (ConnectUtils.isVpnConnect()) {
             adManagerOpen
         } else {
             adManagerOpenDis
+        }
+    }
+
+    fun getHomeNativeAdData(): AdManager {
+        return if (ConnectUtils.isVpnConnect()) {
+            adManagerHomeNative
+        } else {
+            adManagerHomeDisNative
+        }
+    }
+
+    fun getEndNativeAdData(): AdManager {
+        return if (ConnectUtils.isVpnConnect()) {
+            adManagerEndNative
+        } else {
+            adManagerEndDisNative
         }
     }
 
@@ -73,8 +95,6 @@ object AdDataUtils {
     }
 
 
-
-
     fun getAdListData(): VpnAdBean {
         val onlineAdBean = DataManager.online_ad_value
         runCatching {
@@ -84,8 +104,7 @@ object AdDataUtils {
                 return Gson().fromJson(adJson, VpnAdBean::class.java)
             }
         }.getOrNull()
-            ?:
-            return Gson().fromJson(adJson, VpnAdBean::class.java)
+            ?: return Gson().fromJson(adJson, VpnAdBean::class.java)
     }
 
     fun base64Decode(base64Str: String): String {
@@ -101,8 +120,9 @@ object AdDataUtils {
                 Gson().fromJson(dataPingJson, AdLjBean::class.java)
             }
         }.onFailure { exception ->
-        }.getOrNull() ?:Gson().fromJson(dataPingJson, AdLjBean::class.java)
+        }.getOrNull() ?: Gson().fromJson(dataPingJson, AdLjBean::class.java)
     }
+
     fun getAdBlackData(): Boolean {
         val adBlack = when (getLjData().nayan1) {
             "1" -> {
@@ -117,18 +137,36 @@ object AdDataUtils {
                 DataManager.black_value != "tibet"
             }
         }
-//        if (!adBlack && AAApp.appComponent.point1 != "1") {
-//            TTTDDUtils.postPointData("moo1")
-//            AAApp.appComponent.point1 = "1"
-//        }
+        if (DataManager.black_up_state != "OK" && !adBlack) {
+            UpDataMix.postPointData("u_whitelist")
+            DataManager.black_up_state = "OK"
+        }
         return adBlack
+    }
+
+    fun getConnectNum(): Pair<Long, Long> {
+        val input = getLjData().nayan3 ?: "10&10"
+        val regex = "(\\d+)&(\\d+)".toRegex() // 匹配任意长度的数字分隔符&数字
+        val matchResult = regex.matchEntire(input)
+        if (matchResult != null) {
+            val leftNumber = matchResult.groupValues[1].toLong() // 转为长整型以处理大数字
+            val rightNumber = matchResult.groupValues[2].toLong()
+            log("Left Number: $leftNumber")
+            log("Right Number: $rightNumber")
+            return Pair(leftNumber, rightNumber)
+
+        } else {
+            log("Invalid format")
+            return Pair(10, 10)
+        }
+
     }
 
     // TODO ad json
     const val adJson = """
 {
-    "doll_sss": 200,
-    "doll_ccc": 3,
+    "doll_sss": 40,
+    "doll_ccc": 2,
     "cloud": {
         "open": [
             {
@@ -236,7 +274,8 @@ object AdDataUtils {
     const val dataPingJson = """
         {
   "nayan1": 1,
-  "nayan2":""
+  "nayan2":"",
+  "nayan3":"10&10"
 }
     """
 }

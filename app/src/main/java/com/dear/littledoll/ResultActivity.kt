@@ -14,6 +14,7 @@ import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import com.dear.littledoll.ad.AdDataUtils
+import com.dear.littledoll.ad.up.UpDataMix
 import com.dear.littledoll.adapter.ResultAdapter
 import com.dear.littledoll.bean.CountryBean
 import com.dear.littledoll.databinding.ActivityResultBinding
@@ -22,6 +23,7 @@ import com.dear.littledoll.utils.DataManager
 import com.dear.littledoll.utils.SpeedUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -29,12 +31,15 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import kotlin.math.log
 import kotlin.random.Random
 
 
 class ResultActivity : AppCompatActivity() {
-    private val binding by lazy { ActivityResultBinding.inflate(layoutInflater) }
+    val binding by lazy { ActivityResultBinding.inflate(layoutInflater) }
     private val resultList = mutableListOf<CountryBean>()
+    var jobResultLittle: Job? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
@@ -42,6 +47,7 @@ class ResultActivity : AppCompatActivity() {
         onBackPressedDispatcher.addCallback(this) {
             returnToHomePage()
         }
+        showResultAd()
         val data: CountryBean
         if (ConnectUtils.isVpnConnect()) {
             binding.btn.setBackgroundResource(R.drawable.test_btn_drawable)
@@ -52,20 +58,27 @@ class ResultActivity : AppCompatActivity() {
             binding.content.text = "Connection Successful"
             binding.resultContent.text = "You’re Quickly Connected and Protected"
             binding.btn.setOnClickListener {
-                testVpnSpAd{
+                AdDataUtils.getEndNativeAdData().loadAd(AdDataUtils.result_type)
+                testVpnSpAd {
                     SpeedUtils().loading(this, { a, b ->
                         CoroutineScope(Dispatchers.Main).launch {
-                            withTimeoutOrNull(500){
+                            withTimeoutOrNull(500) {
                                 while (lifecycle.currentState != Lifecycle.State.RESUMED) delay(50)
                             }
-                            if (lifecycle.currentState == Lifecycle.State.RESUMED){
-                                serviceResult.launch(Intent(this@ResultActivity, SpeedActivity::class.java).putExtra("download", a).putExtra("upload", b))
+                            if (lifecycle.currentState == Lifecycle.State.RESUMED) {
+                                serviceResult.launch(
+                                    Intent(
+                                        this@ResultActivity,
+                                        SpeedActivity::class.java
+                                    ).putExtra("download", a).putExtra("upload", b)
+                                )
                             }
                         }
                     }) {
                         Toast.makeText(this, "Speed measurement timeout", Toast.LENGTH_SHORT).show()
                     }
                 }
+                UpDataMix.postPointData("p_result_test")
             }
         } else {
             binding.btn.setBackgroundResource(R.drawable.re_btn_drawable)
@@ -77,24 +90,39 @@ class ResultActivity : AppCompatActivity() {
             binding.resultContent.text = "Secure Connection Ended"
             binding.resultList.visibility = View.VISIBLE
             val list = DataManager.getGrouping().apply { removeAt(0) }.shuffled().take(4)
-            list.forEach { resultList.add(it.shuffled().random(Random(System.currentTimeMillis()))) }
+            list.forEach {
+                resultList.add(
+                    it.shuffled().random(Random(System.currentTimeMillis()))
+                )
+            }
             if (resultList.size != 4) {
                 val hosts = resultList.map { it.ldHost }.joinToString(",")
-                resultList.addAll(DataManager.getOnlineVpnData(false).filter { hosts.contains(it.ldHost).not() }.shuffled().take(4 - list.size))
+                resultList.addAll(
+                    DataManager.getOnlineVpnData(false).filter { hosts.contains(it.ldHost).not() }
+                        .shuffled().take(4 - list.size)
+                )
             }
             binding.rvLayout.adapter = ResultAdapter(resultList) {
                 setResult(999, Intent().apply { putExtra("data", it) })
                 finish()
+                UpDataMix.postPointData("p_result_use")
+
             }
             binding.btn.setOnClickListener {
                 setResult(999, Intent().putExtra("data", DataManager.selectItem))
                 finish()
+                UpDataMix.postPointData("p_result_reconnect")
             }
         }
         binding.icon.setImageResource(data.getIcon())
         binding.name.text = data.getName()
         binding.tag.text = data.getTag()
         ping()
+        if (ConnectUtils.isVpnConnect()) {
+            UpDataMix.postPointData("p_result_view", "type", "connect", "IP", DataManager.ip)
+        } else {
+            UpDataMix.postPointData("p_result_view", "type", "disconnect", "IP", "1")
+        }
     }
 
     private fun ping() {
@@ -112,6 +140,8 @@ class ResultActivity : AppCompatActivity() {
                     binding.ping.text = "${ms}ms"
                     binding.xhBg.visibility = View.VISIBLE
                     val s = ms.toLongOrNull() ?: 9999L
+                    Log.e("TAG", "ping: $s", )
+                    UpDataMix.postPointData("c_ping", "ping", s, "pp", DataManager.ip)
                     if (s <= 400) {
                         binding.view1.setBackgroundResource(R.drawable.xh_drawable)
                         binding.view2.setBackgroundResource(R.drawable.xh_drawable)
@@ -127,22 +157,31 @@ class ResultActivity : AppCompatActivity() {
                     }
                 }
             }.onFailure {
-
+                UpDataMix.postPointData("c_ping", "ping", "timeout", "pp", DataManager.ip)
             }
         }
     }
 
 
-    private val serviceResult = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        if (it.resultCode == 998) {
-            val data = it.data!!.getSerializableExtra("data") as CountryBean
-            setResult(998, Intent().putExtra("data", data))
-            finish()
+    private val serviceResult =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+            if (it.resultCode == 998) {
+                val data = it.data!!.getSerializableExtra("data") as CountryBean
+                setResult(998, Intent().putExtra("data", data))
+                finish()
+            }
         }
-    }
 
     private fun returnToHomePage() {
-        if (AdDataUtils.getEndIntAdData().canShowAd(AdDataUtils.end_type) == AdDataUtils.ad_jump_over) {
+        val type = if (ConnectUtils.isVpnConnect()) {
+            "connect"
+        } else {
+            "disconnect"
+        }
+        UpDataMix.postPointData("p_result_back", "type", type)
+        if (AdDataUtils.getEndIntAdData()
+                .canShowAd(AdDataUtils.end_type) == AdDataUtils.ad_jump_over
+        ) {
             finish()
             return
         }
@@ -161,11 +200,14 @@ class ResultActivity : AppCompatActivity() {
                         break
                     }
 
-                    if (AdDataUtils.getEndIntAdData().canShowAd(AdDataUtils.end_type) == AdDataUtils.ad_show) {
-                        AdDataUtils.getEndIntAdData().showAd(AdDataUtils.end_type, this@ResultActivity) {
-                            finish()
-                            binding.conLoadAd.isVisible = false
-                        }
+                    if (AdDataUtils.getEndIntAdData()
+                            .canShowAd(AdDataUtils.end_type) == AdDataUtils.ad_show
+                    ) {
+                        AdDataUtils.getEndIntAdData()
+                            .showAd(AdDataUtils.end_type, this@ResultActivity) {
+                                finish()
+                                binding.conLoadAd.isVisible = false
+                            }
                         break
                     }
                     delay(500L)
@@ -178,7 +220,9 @@ class ResultActivity : AppCompatActivity() {
     }
 
     private fun testVpnSpAd(nextFun: () -> Unit) {
-        if (AdDataUtils.getInterListAdData().canShowAd(AdDataUtils.list_type) == AdDataUtils.ad_jump_over) {
+        if (AdDataUtils.getInterListAdData()
+                .canShowAd(AdDataUtils.list_type) == AdDataUtils.ad_jump_over
+        ) {
             nextFun()
             return
         }
@@ -196,11 +240,14 @@ class ResultActivity : AppCompatActivity() {
                         break
                     }
 
-                    if (elapsedTime >= 1000L&&AdDataUtils.getInterListAdData().canShowAd(AdDataUtils.list_type) == AdDataUtils.ad_show) {
-                        AdDataUtils.getInterListAdData().showAd(AdDataUtils.list_type, this@ResultActivity) {
-                            binding.conLoadAd.isVisible = false
-                            nextFun()
-                        }
+                    if (elapsedTime >= 1000L && AdDataUtils.getInterListAdData()
+                            .canShowAd(AdDataUtils.list_type) == AdDataUtils.ad_show
+                    ) {
+                        AdDataUtils.getInterListAdData()
+                            .showAd(AdDataUtils.list_type, this@ResultActivity) {
+                                binding.conLoadAd.isVisible = false
+                                nextFun()
+                            }
                         break
                     }
                     delay(500L)
@@ -208,6 +255,36 @@ class ResultActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 binding.conLoadAd.isVisible = false
                 nextFun()
+            }
+        }
+    }
+
+    private fun showResultAd() {
+        AdDataUtils.log("showResultAd")
+        jobResultLittle?.cancel()
+        jobResultLittle = null
+        binding.adLayout.isVisible = true
+        binding.imgOcAd.isVisible = true
+        if (AdDataUtils.getEndNativeAdData()
+                .canShowAd(AdDataUtils.result_type) == AdDataUtils.ad_wait
+        ) {
+            binding.adLayoutAdmob.isVisible = false
+            AdDataUtils.getEndNativeAdData().loadAd(AdDataUtils.result_type)
+        }
+        jobResultLittle = lifecycleScope.launch {
+            delay(300)
+            while (isActive) {
+                if (AdDataUtils.getEndNativeAdData()
+                        .canShowAd(AdDataUtils.result_type) == AdDataUtils.ad_show
+                ) {
+                    AdDataUtils.getEndNativeAdData()
+                        .showAd(AdDataUtils.result_type, this@ResultActivity) {
+                        }
+                    jobResultLittle?.cancel()
+                    jobResultLittle = null
+                    break
+                }
+                delay(500L)
             }
         }
     }

@@ -22,6 +22,7 @@ import com.adjust.sdk.AdjustConfig
 import com.android.installreferrer.api.InstallReferrerClient
 import com.android.installreferrer.api.InstallReferrerStateListener
 import com.dear.littledoll.ad.AdDataUtils
+import com.dear.littledoll.ad.up.AdminUtils
 import com.dear.littledoll.ad.up.UpDataMix
 import com.dear.littledoll.utils.ConnectUtils
 import com.dear.littledoll.utils.DataManager
@@ -50,6 +51,8 @@ class LDApplication : Application(), Application.ActivityLifecycleCallbacks, Lif
         lateinit var app: Application
         var isInBackground = false
         var nowAN: String? = null
+        var nativeRef = false
+        var startAppTime = 0L
     }
 
     override fun onCreate() {
@@ -63,11 +66,12 @@ class LDApplication : Application(), Application.ActivityLifecycleCallbacks, Lif
         if (isMain()) {
             app = this
             getGid(this)
+            startAppTime = System.currentTimeMillis()
             InspectUtils.inspectCountry()
             if (DataManager.uid_value.isBlank()) {
                 DataManager.uid_value = UUID.randomUUID().toString()
             }
-            refInformation(this)
+            InspectUtils.obtainTheDataOfBlacklistedUsers(this@LDApplication)
             initAdJust(this)
         }
     }
@@ -139,33 +143,6 @@ class LDApplication : Application(), Application.ActivityLifecycleCallbacks, Lif
         activity.finish()
     }
 
-    private fun refInformation(context: Context) {
-        if (DataManager.install_value == "OK") {
-            return
-        }
-        runCatching {
-            val referrerClient = InstallReferrerClient.newBuilder(context).build()
-            referrerClient.startConnection(object : InstallReferrerStateListener {
-                override fun onInstallReferrerSetupFinished(p0: Int) {
-                    when (p0) {
-                        InstallReferrerClient.InstallReferrerResponse.OK -> {
-                            referrerClient.installReferrer?.run {
-                                UpDataMix.postInstallData(
-                                    context,
-                                    referrerClient.installReferrer
-                                )
-                            }
-                        }
-                    }
-                    referrerClient.endConnection()
-                }
-
-                override fun onInstallReferrerServiceDisconnected() {
-                }
-            })
-        }.onFailure { e ->
-        }
-    }
 
     private fun initAdJust(application: Application) {
         Adjust.addSessionCallbackParameter(
@@ -199,11 +176,14 @@ class LDApplication : Application(), Application.ActivityLifecycleCallbacks, Lif
     }
 
     private fun getGid(context: Context) {
-        if (DataManager.gid_value.isNotBlank()) {
-            return
+        CoroutineScope(Dispatchers.IO).launch {
+            if (DataManager.gid_value.isNotBlank()) {
+                return@launch
+            }
+            DataManager.gid_value =
+                (runCatching { AdvertisingIdClient.getAdvertisingIdInfo(context).id }.getOrNull()
+                    ?: "")
+            AdDataUtils.log("gid = ${DataManager.gid_value}")
         }
-        DataManager.gid_value =
-            (runCatching { AdvertisingIdClient.getAdvertisingIdInfo(context).id }.getOrNull() ?: "")
-        AdDataUtils.log("gid = ${ DataManager.gid_value}")
     }
 }

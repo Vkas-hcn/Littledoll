@@ -83,6 +83,11 @@ object DataManager {
         set(value) {
             sharedPreferences.edit().putString("ad_load_date", value).apply()
         }
+    var point_num_state: Boolean
+        get() = sharedPreferences.getBoolean("point_num_state", true)
+        set(value) {
+            sharedPreferences.edit().putBoolean("point_num_state", value).apply()
+        }
 
     var uid_value: String
         get() = sharedPreferences.getString("uid_value", "").toString()
@@ -105,6 +110,34 @@ object DataManager {
         get() = sharedPreferences.getString("gid_value", "").toString()
         set(value) {
             sharedPreferences.edit().putString("gid_value", value).apply()
+        }
+    var ref_value: String
+        get() = sharedPreferences.getString("ref_value", "").toString()
+        set(value) {
+            sharedPreferences.edit().putString("ref_value", value).apply()
+        }
+
+    var ref_admin: String
+        get() = sharedPreferences.getString("ref_admin", "").toString()
+        set(value) {
+            sharedPreferences.edit().putString("ref_admin", value).apply()
+        }
+
+    var black_admin: String
+        get() = sharedPreferences.getString("black_admin", "").toString()
+        set(value) {
+            sharedPreferences.edit().putString("black_admin", value).apply()
+        }
+
+    var cmp_state: String
+        get() = sharedPreferences.getString("cmp_state", "").toString()
+        set(value) {
+            sharedPreferences.edit().putString("cmp_state", value).apply()
+        }
+    var black_up_state:String
+        get() = sharedPreferences.getString("black_up_state", "").toString()
+        set(value) {
+            sharedPreferences.edit().putString("black_up_state", value).apply()
         }
     private fun getList(): MutableList<CountryBean> {
         val list = mutableListOf<CountryBean>()

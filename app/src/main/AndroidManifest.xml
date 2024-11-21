@@ -18,27 +18,33 @@
             android:value="@string/i_a_g" />
         <activity
             android:name=".PolicyActivity"
+            android:launchMode="singleTop"
             android:screenOrientation="portrait"
             android:exported="false" />
         <activity
             android:name=".SettingActivity"
+            android:launchMode="singleTop"
             android:screenOrientation="portrait"
             android:exported="false" />
         <activity
             android:name=".SpeedActivity"
+            android:launchMode="singleTop"
             android:screenOrientation="portrait"
             android:exported="false" />
         <activity
             android:name=".ResultActivity"
+            android:launchMode="singleTop"
             android:screenOrientation="portrait"
             android:exported="false" />
         <activity
             android:name=".SelectServerActivity"
+            android:launchMode="singleTop"
             android:screenOrientation="portrait"
             android:exported="false" />
         <activity
             android:name=".LiverActivity"
             android:screenOrientation="portrait"
+            android:launchMode="singleTop"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

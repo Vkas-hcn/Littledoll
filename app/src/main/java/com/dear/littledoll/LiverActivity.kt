@@ -1,5 +1,6 @@
 package com.dear.littledoll
 
+import android.content.Context
 import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
@@ -7,18 +8,26 @@ import android.util.Log
 import androidx.activity.OnBackPressedCallback
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import com.android.installreferrer.api.InstallReferrerClient
+import com.android.installreferrer.api.InstallReferrerStateListener
 import com.dear.littledoll.ad.AdDataUtils
 import com.dear.littledoll.ad.AdDataUtils.log
 import com.dear.littledoll.ad.AdDataUtils.onlien_ad_key
 import com.dear.littledoll.ad.AdDataUtils.onlien_list_key
 import com.dear.littledoll.ad.AdDataUtils.onlien_pz_key
 import com.dear.littledoll.ad.AdDataUtils.onlien_smart_key
+import com.dear.littledoll.ad.up.AdminUtils
 import com.dear.littledoll.ad.up.UpDataMix
 import com.dear.littledoll.databinding.ActivityLiverBinding
+import com.dear.littledoll.utils.ConnectUtils
 import com.dear.littledoll.utils.DataManager
 import com.dear.littledoll.utils.InspectUtils
 import com.facebook.FacebookSdk
 import com.facebook.appevents.AppEventsLogger
+import com.google.android.ump.ConsentDebugSettings
+import com.google.android.ump.ConsentInformation
+import com.google.android.ump.ConsentRequestParameters
+import com.google.android.ump.UserMessagingPlatform
 import com.google.firebase.analytics.FirebaseAnalytics
 import com.google.firebase.ktx.Firebase
 import com.google.firebase.remoteconfig.ktx.remoteConfig
@@ -44,14 +53,14 @@ class LiverActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(binding.root)
+        refInformation(this)
+        cmpUtils()
         getFileBaseData {
-            AdDataUtils.getStartOpenAdData().loadAd(AdDataUtils.open_type)
-            showOpenAd()
+            waitForCmpInALoop()
         }
         CoroutineScope(Dispatchers.IO).launch {
-            InspectUtils.obtainTheDataOfBlacklistedUsers(this@LiverActivity)
+            UpDataMix.postSessionData(this@LiverActivity)
         }
-        UpDataMix.postSessionData(this)
         clickFUn()
     }
 
@@ -100,7 +109,22 @@ class LiverActivity : AppCompatActivity() {
             }
         }
     }
-
+    //循环等待cmp
+    private fun waitForCmpInALoop() {
+        CoroutineScope(Dispatchers.Main).launch {
+            while (isActive){
+                if (DataManager.cmp_state == "OK") {
+                    log("循环等待cmp=${ConnectUtils.isVpnConnect()}")
+                    AdDataUtils.getStartOpenAdData().loadAd(AdDataUtils.open_type)
+                    AdDataUtils.getHomeNativeAdData().loadAd(AdDataUtils.home_type)
+                    showOpenAd()
+                    cancel()
+                    break
+                }
+                delay(500)
+            }
+        }
+    }
 
     private fun initFaceBook() {
         val bean = AdDataUtils.getLjData()
@@ -117,7 +141,7 @@ class LiverActivity : AppCompatActivity() {
     private fun showOpenAd() {
         GlobalScope.launch {
             while (true) {
-                delay(10000)
+                delay(12000)
                 onCountdownFinished()
                 return@launch
             }
@@ -164,4 +188,73 @@ class LiverActivity : AppCompatActivity() {
         }
     }
 
+    private fun refInformation(context: Context) {
+        runCatching {
+            val referrerClient = InstallReferrerClient.newBuilder(context).build()
+            referrerClient.startConnection(object : InstallReferrerStateListener {
+                override fun onInstallReferrerSetupFinished(p0: Int) {
+                    when (p0) {
+                        InstallReferrerClient.InstallReferrerResponse.OK -> {
+                            DataManager.ref_value =
+                                referrerClient.installReferrer.installReferrer ?: ""
+                            Log.e(
+                                "TAG",
+                                "onInstallReferrerSetupFinished: ${referrerClient.installReferrer}",
+                            )
+                            val timeElapsed =
+                                ((System.currentTimeMillis() - LDApplication.startAppTime) / 1000).toInt()
+                            UpDataMix.postPointData("u_rf","time",timeElapsed)
+                            CoroutineScope(Dispatchers.IO).launch {
+                                AdminUtils.getAdminData()
+                            }
+                            referrerClient.installReferrer?.run {
+                                UpDataMix.postInstallData(
+                                    context,
+                                    referrerClient.installReferrer
+                                )
+                            }
+
+                        }
+                    }
+                    referrerClient.endConnection()
+                }
+
+                override fun onInstallReferrerServiceDisconnected() {
+                }
+            })
+        }.onFailure { e ->
+        }
+    }
+
+    private fun cmpUtils() {
+        if (DataManager.cmp_state == "OK") {
+            return
+        }
+        val debugSettings =
+            ConsentDebugSettings.Builder(this)
+                .setDebugGeography(ConsentDebugSettings.DebugGeography.DEBUG_GEOGRAPHY_EEA)
+                .addTestDeviceHashedId("76A730E9AE68BD60E99DF7B83D65C4B4")
+                .build()
+        val params = ConsentRequestParameters
+            .Builder()
+            .setConsentDebugSettings(debugSettings)
+            .build()
+        val consentInformation: ConsentInformation =
+            UserMessagingPlatform.getConsentInformation(this)
+        consentInformation.requestConsentInfoUpdate(
+            this,
+            params, {
+                UserMessagingPlatform.loadAndShowConsentFormIfRequired(this) {
+                    if (consentInformation.canRequestAds()) {
+                        log("cmp1111")
+                        DataManager.cmp_state = "OK"
+                    }
+                }
+            },
+            {
+                log("cpm222")
+                DataManager.cmp_state = "OK"
+            }
+        )
+    }
 }

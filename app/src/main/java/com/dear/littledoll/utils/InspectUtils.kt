@@ -152,8 +152,9 @@ object InspectUtils {
 
 
     fun inspectConnect(activity: Activity): Boolean {
-        if(BuildConfig.DEBUG){return false}
+//        if(BuildConfig.DEBUG){return false}
         if (inspectNetwork().not()) {
+            UpDataMix.postPointData("u_no_network")
             AlertDialog.Builder(activity).create().apply {
                 setCancelable(false)
                 setOnKeyListener { dialog, keyCode, event -> true }
@@ -165,6 +166,7 @@ object InspectUtils {
         }
         val country = DataManager.htp_country.ifEmpty { Locale.getDefault().country }
         if (arrayOf("CN", "HK", "MO", "IR").any { country.contains(it, true) }) {
+            UpDataMix.postPointData("u_area_limit", "cy", country)
             AlertDialog.Builder(activity).create().apply {
                 setCancelable(false)
                 setOnKeyListener { dialog, keyCode, event -> true }

@@ -25,6 +25,9 @@ import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import com.dear.littledoll.ad.AdDataUtils
+import com.dear.littledoll.ad.AdDataUtils.log
+import com.dear.littledoll.ad.AdManager
+import com.dear.littledoll.ad.up.UpDataMix
 import com.dear.littledoll.bean.CountryBean
 import com.dear.littledoll.databinding.ActivityMainBinding
 import com.dear.littledoll.imp.SpeedImp
@@ -48,7 +51,7 @@ import java.util.TimeZone
 
 
 class MainActivity : AppCompatActivity() {
-    private val binding by lazy { ActivityMainBinding.inflate(layoutInflater) }
+    val binding by lazy { ActivityMainBinding.inflate(layoutInflater) }
     private var oldSelect = CountryBean()
     private var isLoading = false
     private var isOptimize = false
@@ -57,6 +60,7 @@ class MainActivity : AppCompatActivity() {
     private var isClick = true
     private var jobConnect: Job? = null
     var iOpenVPNAPIService: IOpenVPNAPIService? = null
+    var jobHomeLittle: Job? = null
     private val imp by lazy {
         object : SpeedImp {
             override fun speedLong(download: Long, upload: Long) {
@@ -73,9 +77,11 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
         init()
         click()
+        UpDataMix.postPointData("p_home_view")
     }
 
     private fun init() {
+        LDApplication.nativeRef = true
         binding.timeTitle.text = "Blazing Speed, Worry-Free Privacy"
         setInfoData()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -107,12 +113,19 @@ class MainActivity : AppCompatActivity() {
 
     private fun click() {
         binding.serviceLayout.setOnClickListener {
-            clickBlock { serviceResult.launch(Intent(this, SelectServerActivity::class.java)) }
+            clickBlock {
+                AdDataUtils.getEndNativeAdData().loadAd(AdDataUtils.result_type)
+                serviceResult.launch(Intent(this, SelectServerActivity::class.java))
+                LDApplication.nativeRef = true
+            }
         }
         binding.btn.setOnClickListener(clickUp)
         binding.qd.setOnClickListener(clickUp)
         binding.set.setOnClickListener {
-            clickBlock { startActivity(Intent(this, SettingActivity::class.java)) }
+            clickBlock {
+                startActivity(Intent(this, SettingActivity::class.java))
+                LDApplication.nativeRef = true
+            }
         }
 
         binding.disConnect.setOnClickListener {
@@ -123,10 +136,14 @@ class MainActivity : AppCompatActivity() {
             isOptimize = true
             iOpenVPNAPIService?.disconnect()
             Log.e("TAG", ": disconnect()-3")
-
+            UpDataMix.postPointData("p_home_optimize")
         }
         binding.test.setOnClickListener {
+            UpDataMix.postPointData("p_home_test")
             clickBlock {
+                if (DataManager.black_admin != "2") {
+                    AdDataUtils.getEndNativeAdData().loadAd(AdDataUtils.result_type)
+                }
                 testVpnSpAd {
                     SpeedUtils().loading(this, { a, b ->
                         CoroutineScope(Dispatchers.IO).launch {
@@ -140,6 +157,7 @@ class MainActivity : AppCompatActivity() {
                                         SpeedActivity::class.java
                                     ).putExtra("download", a).putExtra("upload", b)
                                 )
+                                LDApplication.nativeRef = true
                             }
                         }
                     }) {
@@ -156,6 +174,10 @@ class MainActivity : AppCompatActivity() {
 
 
     private val clickUp = View.OnClickListener {
+        UpDataMix.postPointData("p_home_click")
+        if (!ConnectUtils.isVpnConnect()) {
+            UpDataMix.postPointData("c_all_connect", "type", "open")
+        }
         clickBlock { sendPostResult() }
     }
 
@@ -213,7 +235,6 @@ class MainActivity : AppCompatActivity() {
                             binding.connectBtn.visibility = View.GONE
                             stopTime(false)
                         }
-
                     }
 
                     "..." -> {
@@ -227,8 +248,9 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     "CONNECTED" -> {
-                        showConnectAd()
+                        showConnectAd(AdDataUtils.getConnectNum().first)
                         AdDataUtils.getEndIntAdData().loadAd(AdDataUtils.end_type)
+                        UpDataMix.postPointData("c_su_connet", "type", "open", "IP", DataManager.ip)
                     }
 
                     "RECONNECTING" -> {
@@ -243,6 +265,13 @@ class MainActivity : AppCompatActivity() {
                         binding.timeTitle.text = "Blazing Speed, Worry-Free Privacy"
                         binding.qd.visibility = View.VISIBLE
                         binding.layoutConnectInfo.visibility = View.GONE
+                        UpDataMix.postPointData(
+                            "c_dissu_connect",
+                            "type",
+                            "open",
+                            "IP",
+                            DataManager.ip
+                        )
                     }
                 }
             }
@@ -268,14 +297,17 @@ class MainActivity : AppCompatActivity() {
                 setInfoData()
                 isOptimize = true
                 isData = true
-                Log.e("TAG", ": disconnect()-1", )
+                Log.e("TAG", ": disconnect()-1")
                 iOpenVPNAPIService?.disconnect()
             }
         }
 
     private val vpnResult =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-            if (it.resultCode == Activity.RESULT_OK) startUp()
+            if (it.resultCode == Activity.RESULT_OK) {
+                startUp()
+                UpDataMix.postPointData("c_vpnper_get")
+            }
         }
 
 
@@ -318,6 +350,7 @@ class MainActivity : AppCompatActivity() {
             loadingIng.start()
             prohibit(false)
             iOpenVPNAPIService?.let { ConnectUtils.open(it) }
+            UpDataMix.postPointData("c_real_connect", "type", "open", "IP", DataManager.ip)
         } else {
             disconnect()
         }
@@ -362,6 +395,7 @@ class MainActivity : AppCompatActivity() {
         binding.qd.visibility = View.VISIBLE
         binding.layoutConnectInfo.visibility = View.GONE
         if (isResult) {
+            AdDataUtils.getEndNativeAdData().loadAd(AdDataUtils.result_type)
             withTimeoutOrNull(500) {
                 while (lifecycle.currentState != Lifecycle.State.RESUMED) delay(50)
             }
@@ -372,6 +406,7 @@ class MainActivity : AppCompatActivity() {
                         oldSelect
                     )
                 )
+                LDApplication.nativeRef = true
             }
         } else {
             if (isData) {
@@ -392,7 +427,8 @@ class MainActivity : AppCompatActivity() {
             loadingIng.start()
             prohibit()
             delay(1000)
-            showConnectAd()
+            showConnectAd(AdDataUtils.getConnectNum().second)
+            UpDataMix.postPointData("c_all_disconnect", "type", "open")
         }
 
     }
@@ -403,35 +439,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startVpn() {
-        //TODO
         if (InspectUtils.inspectConnect(this)) return
         if (ConnectUtils.isVpnPermission()) {
             startUp()
         } else {
+            UpDataMix.postPointData("c_vpnper_view")
             vpnResult.launch(VpnService.prepare(this))
         }
     }
 
-    private val singlePermissionRequestLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            if (granted.not()) {
-                if (!ActivityCompat.shouldShowRequestPermissionRationale(
-                        this,
-                        Manifest.permission.POST_NOTIFICATIONS
-                    )
-                ) {
-                    Toast.makeText(
-                        this,
-                        "Please go to the application settings page to enable notification permissions",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            } else {
-                startVpn()
-            }
-        }
-
-    fun showConnectAd() {
+    fun showConnectAd(connectTime: Long) {
         jobConnect?.cancel()
         jobConnect = null
         jobConnect = lifecycleScope.launch {
@@ -445,7 +462,7 @@ class MainActivity : AppCompatActivity() {
             try {
                 while (isActive) {
                     elapsedTime = System.currentTimeMillis() - startTime
-                    if (elapsedTime >= (10 * 1000)) {
+                    if (elapsedTime >= (connectTime * 1000)) {
                         Log.e("TAG", "连接超时")
                         showFinishAd()
                         break
@@ -495,6 +512,7 @@ class MainActivity : AppCompatActivity() {
                     ResultActivity::class.java
                 ).putExtra("data", oldSelect)
             )
+            LDApplication.nativeRef = true
         }
     }
 
@@ -540,6 +558,53 @@ class MainActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 nextFun()
                 binding.conLoadAd.isVisible = false
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        lifecycleScope.launch {
+            delay(200)
+            if (lifecycle.currentState.name == Lifecycle.State.RESUMED.name && LDApplication.nativeRef) {
+                showHomeAd()
+                LDApplication.nativeRef = false
+            }
+        }
+    }
+
+    private fun showHomeAd() {
+        log("showHomeAd")
+        jobHomeLittle?.cancel()
+        jobHomeLittle = null
+        if (AdDataUtils.getAdBlackData() || DataManager.black_admin == "2") {
+            binding.adLayout.isVisible = false
+            return
+        }
+        binding.adLayout.isVisible = true
+        binding.imgOcAd.isVisible = true
+        if (AdDataUtils.getHomeNativeAdData()
+                .canShowAd(AdDataUtils.home_type) == AdDataUtils.ad_wait
+        ) {
+            binding.adLayoutAdmob.isVisible = false
+            AdDataUtils.getHomeNativeAdData().loadAd(AdDataUtils.home_type)
+        }
+        jobHomeLittle = lifecycleScope.launch {
+            delay(300)
+            while (isActive) {
+                if (AdDataUtils.getHomeNativeAdData()
+                        .canShowAd(AdDataUtils.home_type) == AdDataUtils.ad_show
+                ) {
+                    AdDataUtils.getHomeNativeAdData()
+                        .showAd(AdDataUtils.home_type, this@MainActivity) {
+                            log("再次加载")
+                            AdDataUtils.getHomeNativeAdData().loadAd(AdDataUtils.home_type)
+                        }
+                    jobHomeLittle?.cancel()
+                    jobHomeLittle = null
+                    break
+                }
+                delay(500L)
             }
         }
     }
