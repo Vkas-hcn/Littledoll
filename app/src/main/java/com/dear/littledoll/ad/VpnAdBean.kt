@@ -24,10 +24,10 @@ data class VpnAdBeanDetail(
 
 @Keep
 data class AdEasy(
-    var doll_i: String = "",
-    var doll_e: Int = 0,
-    var doll_a: String = "",
-    var doll_w: String = "",
+    var doll_id: String = "",
+    var doll_we: Int = 0,
+    var doll_admob: String = "",
+    var doll_where: String = "",
     var llllcc: String? = null,
     var sssscc: String? = null,
     var llllpp: String? = null,

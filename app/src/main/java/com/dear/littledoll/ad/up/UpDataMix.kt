@@ -142,7 +142,7 @@ object UpDataMix {
             //ad_source
             put("pastor", "admob")
             //ad_code_id
-            put("siege", adEasy.doll_i)
+            put("siege", adEasy.doll_id)
             //ad_pos_id
             put("gases", ad_pos_id)
             //ad_rit_id
@@ -150,7 +150,7 @@ object UpDataMix {
             //ad_sense
             put("horrible", "")
             //ad_format
-            put("guru", adEasy.doll_w)
+            put("guru", adEasy.doll_where)
             //precision_type
             put("burly", getPrecisionType(adValue.precisionType))
             //ad_load_ip
@@ -400,7 +400,7 @@ object UpDataMix {
             "page",
             LDApplication.nowAN,
             "ID",
-            "${adBean.doll_i}+${ConnectUtils.isVpnConnect()}",
+            "${adBean.doll_id}+${ConnectUtils.isVpnConnect()}",
             "IP",
             adBean.llllpp
         )
@@ -413,7 +413,7 @@ object UpDataMix {
                 "page",
                 LDApplication.nowAN,
                 "ID",
-                "${adBean.doll_i}+${ConnectUtils.isVpnConnect()}",
+                "${adBean.doll_id}+${ConnectUtils.isVpnConnect()}",
                 "IP",
                 adBean.llllpp
             )
@@ -428,19 +428,19 @@ object UpDataMix {
             "page",
             LDApplication.nowAN,
             "ID",
-            "${adBean.doll_i}+${ConnectUtils.isVpnConnect()}",
+            "${adBean.doll_id}+${ConnectUtils.isVpnConnect()}",
             "IP",
             adBean.llllpp
         )
     }
 
-    fun getFailedPointData(doll_i:String,llllpp: String, adType: String, error: String) {
+    fun getFailedPointData(doll_id:String,llllpp: String, adType: String, error: String) {
         postPointData(
             "abc_askdis",
             "inform",
             adType,
             "ID",
-            "$doll_i}+${ConnectUtils.isVpnConnect()}",
+            "$doll_id}+${ConnectUtils.isVpnConnect()}",
             "IP",
             llllpp,
             "reason",
@@ -456,7 +456,7 @@ object UpDataMix {
             "page",
             LDApplication.nowAN,
             "ID",
-            "${adBean.doll_i}+${ConnectUtils.isVpnConnect()}",
+            "${adBean.doll_id}+${ConnectUtils.isVpnConnect()}",
             "pp",
             adBean.llllpp,
         )

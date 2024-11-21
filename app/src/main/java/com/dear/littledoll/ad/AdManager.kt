@@ -88,7 +88,7 @@ class AdManager(private val application: Application) {
             AdDataUtils.list_type -> adAllDataDetail.backivsv
             AdDataUtils.end_type -> adAllDataDetail.backivconnect
             else -> emptyList()
-        }.sortedByDescending { it.doll_e }
+        }.sortedByDescending { it.doll_we }
 
         loadAdFromList(adType, adList, 0)
     }
@@ -129,11 +129,11 @@ class AdManager(private val application: Application) {
             return
         }
         val adEasy = adList[index]
-        log("$adType 广告，开始加载: id=${adEasy.doll_i};we=${adEasy.doll_e}")
-        when (adEasy.doll_w) {
-            "pp" -> loadOpenAd(adType, adEasy, adList, index)
-            "tt" -> loadNativeAd(adType, adEasy, adList, index)
-            "ss" -> loadInterstitialAd(adType, adEasy, adList, index)
+        log("$adType 广告，开始加载: id=${adEasy.doll_id};we=${adEasy.doll_we}")
+        when (adEasy.doll_where) {
+            "open" -> loadOpenAd(adType, adEasy, adList, index)
+            "native" -> loadNativeAd(adType, adEasy, adList, index)
+            "interstitial" -> loadInterstitialAd(adType, adEasy, adList, index)
         }
     }
 
@@ -149,7 +149,7 @@ class AdManager(private val application: Application) {
             UpDataMix.startLoadPointData(adDataOpenDis, adType)
         }
 
-        AppOpenAd.load(application, adEasy.doll_i, AdRequest.Builder().build(),
+        AppOpenAd.load(application, adEasy.doll_id, AdRequest.Builder().build(),
             AppOpenAd.APP_OPEN_AD_ORIENTATION_PORTRAIT,
             object : AppOpenAd.AppOpenAdLoadCallback() {
                 override fun onAdLoaded(ad: AppOpenAd) {
@@ -186,7 +186,7 @@ class AdManager(private val application: Application) {
                     log("${adType}广告加载失败=${loadAdError}----${getLoadIp(adType)}-----$adType")
                     adLoadInProgress[adType] = false
                     UpDataMix.getFailedPointData(
-                        adEasy.doll_i,
+                        adEasy.doll_id,
                         getTbaLoadIp(adType),
                         adType,
                         loadAdError.message
@@ -231,7 +231,7 @@ class AdManager(private val application: Application) {
 
         val builder = NativeAdOptions.Builder()
             .setAdChoicesPlacement(NativeAdOptions.ADCHOICES_TOP_LEFT)
-        val adLoader = com.google.android.gms.ads.AdLoader.Builder(application, adEasy.doll_i)
+        val adLoader = com.google.android.gms.ads.AdLoader.Builder(application, adEasy.doll_id)
             .forNativeAd { ad: NativeAd ->
                 log("${adType}广告加载成功")
                 adCache[adType] = ad
@@ -245,7 +245,7 @@ class AdManager(private val application: Application) {
                     log("${adType}广告加载失败=${loadAdError}")
                     adLoadInProgress[adType] = false
                     UpDataMix.getFailedPointData(
-                        adEasy.doll_i,
+                        adEasy.doll_id,
                         getTbaLoadIp(adType),
                         adType,
                         loadAdError.message
@@ -309,7 +309,7 @@ class AdManager(private val application: Application) {
             }
         }
 
-        InterstitialAd.load(application, adEasy.doll_i, AdRequest.Builder().build(),
+        InterstitialAd.load(application, adEasy.doll_id, AdRequest.Builder().build(),
             object : InterstitialAdLoadCallback() {
                 override fun onAdLoaded(ad: InterstitialAd) {
                     log("${adType}广告加载成功")
@@ -363,7 +363,7 @@ class AdManager(private val application: Application) {
                     log("${adType}广告加载失败=${loadAdError}")
                     adLoadInProgress[adType] = false
                     UpDataMix.getFailedPointData(
-                        adEasy.doll_i,
+                        adEasy.doll_id,
                         getTbaLoadIp(adType),
                         adType,
                         loadAdError.message
